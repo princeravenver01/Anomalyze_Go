@@ -5,7 +5,7 @@ def load_and_preprocess_data(file_path):
     """
     Loads the NSL-KDD dataset, assigns column names, and handles categorical features.
     """
-    # Column names for the NSL-KDD dataset
+    #Column names for the NSL-KDD dataset
     columns = [
         'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
         'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
@@ -24,10 +24,10 @@ def load_and_preprocess_data(file_path):
     
     df = pd.read_csv(file_path, header=None, names=columns)
 
-    # Drop the 'difficulty' column as it's not needed for clustering
+    #Drop the 'difficulty' column as it's not needed for clustering
     df = df.drop('difficulty', axis=1)
 
-    # Handle categorical features using one-hot encoding
+    #Handle categorical features using one-hot encoding
     categorical_cols = ['protocol_type', 'service', 'flag']
     df = pd.get_dummies(df, columns=categorical_cols, dummy_na=True)
 

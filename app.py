@@ -10,7 +10,7 @@ import joblib
 
 app = Flask(__name__)
 
-# Configure folders
+#Configure folders
 UPLOAD_FOLDER = 'uploads'
 MODELS_FOLDER = 'models'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -18,12 +18,12 @@ for folder in [UPLOAD_FOLDER, MODELS_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-# Global variables for the model and data features
+#Global variables for the model and data features
 kmeans_model = None
 scaler = None
 data_columns = None
 
-# Paths for saved model files
+#Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
 SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
@@ -45,29 +45,29 @@ def load_or_train_model():
         print("No saved model found. Training a new model...")
         train_data_path = 'data/KDDTrain+.txt'
         if not os.path.exists(train_data_path):
-            print(f"FATAL: Training data not found at {train_data_path}. Please add the file to proceed.")
+            print(f"Training data not found at {train_data_path}. Please add the file to proceed.")
             return
 
-        # Load and preprocess the training data
+        #Load and preprocess the training data
         df_train = load_and_preprocess_data(train_data_path)
         
-        # Separate normal traffic for training
+        #Separate normal traffic for training
         df_normal = df_train[df_train['label'] == 'normal']
         
-        # Drop the label column as it's not a feature
+        #Drop the label column as it's not a feature
         df_normal = df_normal.drop('label', axis=1)
         
         data_columns = df_normal.columns
         
-        # Scale the features
+        #Scale the features
         scaler = StandardScaler()
         df_normal_scaled = scaler.fit_transform(df_normal)
         
-        # Train the K-means model
+        #Train the K-means model
         kmeans_model = KMeans(n_clusters=2, random_state=42, n_init=10)
         kmeans_model.fit(df_normal_scaled)
         
-        # Save the trained model, scaler, and columns to disk
+        #Save the trained model, scaler, and columns to disk
         joblib.dump(kmeans_model, MODEL_PATH)
         joblib.dump(scaler, SCALER_PATH)
         joblib.dump(data_columns, COLUMNS_PATH)
@@ -93,13 +93,13 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Ensure the model is loaded or trained
+        #Ensure the model is loaded or trained
         if kmeans_model is None:
             load_or_train_model()
             if kmeans_model is None:
                 return "Error: Model could not be trained. Check if KDDTrain+.txt is in the 'data' folder.", 500
 
-        # Load and preprocess the uploaded data
+        #Load and preprocess the uploaded data
         df_test_original = pd.read_csv(filepath, header=None, names=[
             'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
             'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
@@ -118,31 +118,31 @@ def upload_file():
         
         df_test = load_and_preprocess_data(filepath)
         
-        # Align columns with the training data
+        #Align columns with the training data
         df_test = df_test.reindex(columns=data_columns, fill_value=0)
 
-        # Scale the test data
+        #Scale the test data
         df_test_scaled = scaler.transform(df_test)
 
-        # Calculate distances to the nearest cluster centroid
+        #Calculate distances to the nearest cluster centroid
         distances = kmeans_model.transform(df_test_scaled).min(axis=1)
         
-        # Set a threshold for anomaly detection
-        # We calculate the threshold from the training data distances
+        #Set a threshold for anomaly detection
+        #We calculate the threshold from the training data distances
         if 'df_normal_scaled' in locals():
              train_distances = kmeans_model.transform(df_normal_scaled).min(axis=1)
              threshold = np.percentile(train_distances, 99)
         else:
-            # Fallback if we loaded the model and don't have train_distances in memory
-            # We set a fixed, potentially less accurate threshold.
+            #Fallback if we loaded the model and don't have train_distances in memory
+            #We set a fixed, potentially less accurate threshold.
             threshold = 15 
         
-        # Identify anomalies
+        #Identify anomalies
         anomalies_mask = distances > threshold
         anomalies = df_test_original[anomalies_mask]
 
         return render_template('index.html', results=anomalies)
 
 if __name__ == '__main__':
-    load_or_train_model() # Load or train the model on startup
+    load_or_train_model() #Load or train the model on startup
     app.run(debug=True, use_reloader=False)
