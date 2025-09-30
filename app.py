@@ -129,7 +129,6 @@ def upload_file():
         
         # Set a threshold for anomaly detection
         # We calculate the threshold from the training data distances
-        # This part is simplified. For a real system, threshold tuning is critical for IDS.
         if 'df_normal_scaled' in locals():
              train_distances = kmeans_model.transform(df_normal_scaled).min(axis=1)
              threshold = np.percentile(train_distances, 99)
