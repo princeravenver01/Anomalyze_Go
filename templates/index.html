@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anomalyze - Network Anomaly Detection</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header>
+      <h1>Anomalyze</h1>
+      <p>Network Anomaly Detection using K-Means Clustering</p>
+    </header>
+    <main>
+      <div class="container">
+        <div class="upload-section">
+          <h2>Upload Network Traffic Data</h2>
+          <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".csv,.txt" />
+            <button type="submit">Analyze</button>
+          </form>
+        </div>
+        {% if results is not none and not results.empty %}
+        <div class="results-section">
+          <h2>Analysis Results</h2>
+          <h3>Anomalies Detected</h3>
+          <table>
+            <thead>
+              <tr>
+                {% for col in results.columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in results.values %}
+              <tr>
+                {% for value in row %}
+                <td>{{ value }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </main>
+  </body>
+</html>
