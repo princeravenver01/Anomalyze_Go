@@ -135,7 +135,7 @@ def upload_file():
              threshold = np.percentile(train_distances, 99)
         else:
             # Fallback if we loaded the model and don't have train_distances in memory
-            # I set a fixed, potentially less accurate threshold.
+            # We set a fixed, potentially less accurate threshold.
             threshold = 15 
         
         # Identify anomalies
