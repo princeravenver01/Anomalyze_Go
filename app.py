@@ -128,16 +128,14 @@ def upload_file():
         distances = kmeans_model.transform(df_test_scaled).min(axis=1)
         
         # Set a threshold for anomaly detection
-        # A simple approach: anomalies are points further than 99% of the training points
         # We calculate the threshold from the training data distances
-        # Note: This part is simplified. For a real system, threshold tuning is critical.
+        # This part is simplified. For a real system, threshold tuning is critical for IDS.
         if 'df_normal_scaled' in locals():
              train_distances = kmeans_model.transform(df_normal_scaled).min(axis=1)
              threshold = np.percentile(train_distances, 99)
         else:
             # Fallback if we loaded the model and don't have train_distances in memory
-            # A pre-computed or estimated threshold would be better here.
-            # For this example, we'll set a fixed, potentially less accurate threshold.
+            # I set a fixed, potentially less accurate threshold.
             threshold = 15 
         
         # Identify anomalies
