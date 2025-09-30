@@ -6,55 +6,72 @@ import numpy as np
 import os
 from werkzeug.utils import secure_filename
 from utils.preprocessing import load_and_preprocess_data
+import joblib
 
 app = Flask(__name__)
 
-# Configure upload folder
+# Configure folders
 UPLOAD_FOLDER = 'uploads'
+MODELS_FOLDER = 'models'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+for folder in [UPLOAD_FOLDER, MODELS_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
 # Global variables for the model and data features
 kmeans_model = None
 scaler = None
 data_columns = None
 
-def train_model():
+# Paths for saved model files
+MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
+SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
+COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
+
+def load_or_train_model():
     """
-    Trains the K-means model on the NSL-KDD training data.
+    Loads a pre-trained K-means model from disk if available,
+    otherwise trains a new one and saves it.
     """
     global kmeans_model, scaler, data_columns
-    
-    train_data_path = 'data/KDDTrain+.txt'
-    if not os.path.exists(train_data_path):
-        # If the training data is not available, we can't proceed.
-        # In a real application, you might want to handle this more gracefully.
-        print("Training data not found. Please add KDDTrain+.txt to the 'data' folder.")
-        return
 
-    # Load and preprocess the training data
-    df_train = load_and_preprocess_data(train_data_path)
-    
-    # Separate normal traffic for training
-    df_normal = df_train[df_train['label'] == 'normal']
-    
-    # Drop the label column as it's not a feature
-    df_normal = df_normal.drop('label', axis=1)
-    
-    # Align columns for consistency
-    data_columns = df_normal.columns
-    
-    # Scale the features
-    scaler = StandardScaler()
-    df_normal_scaled = scaler.fit_transform(df_normal)
-    
-    # Train the K-means model
-    # We choose 2 clusters as a starting point: one for "normal" and one for potential "anomalies"
-    # In a real-world scenario, you might use the elbow method to find the optimal K.
-    kmeans_model = KMeans(n_clusters=2, random_state=42, n_init=10)
-    kmeans_model.fit(df_normal_scaled)
-    print("Model trained successfully.")
+    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH) and os.path.exists(COLUMNS_PATH):
+        print("Loading saved model from disk...")
+        kmeans_model = joblib.load(MODEL_PATH)
+        scaler = joblib.load(SCALER_PATH)
+        data_columns = joblib.load(COLUMNS_PATH)
+        print("Model loaded successfully.")
+    else:
+        print("No saved model found. Training a new model...")
+        train_data_path = 'data/KDDTrain+.txt'
+        if not os.path.exists(train_data_path):
+            print(f"FATAL: Training data not found at {train_data_path}. Please add the file to proceed.")
+            return
+
+        # Load and preprocess the training data
+        df_train = load_and_preprocess_data(train_data_path)
+        
+        # Separate normal traffic for training
+        df_normal = df_train[df_train['label'] == 'normal']
+        
+        # Drop the label column as it's not a feature
+        df_normal = df_normal.drop('label', axis=1)
+        
+        data_columns = df_normal.columns
+        
+        # Scale the features
+        scaler = StandardScaler()
+        df_normal_scaled = scaler.fit_transform(df_normal)
+        
+        # Train the K-means model
+        kmeans_model = KMeans(n_clusters=2, random_state=42, n_init=10)
+        kmeans_model.fit(df_normal_scaled)
+        
+        # Save the trained model, scaler, and columns to disk
+        joblib.dump(kmeans_model, MODEL_PATH)
+        joblib.dump(scaler, SCALER_PATH)
+        joblib.dump(data_columns, COLUMNS_PATH)
+        print("Model trained and saved to disk.")
 
 @app.route('/')
 def index():
@@ -76,11 +93,10 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # If the model is not trained, train it first
+        # Ensure the model is loaded or trained
         if kmeans_model is None:
-            train_model()
+            load_or_train_model()
             if kmeans_model is None:
-                # Handle case where training failed (e.g., data not found)
                 return "Error: Model could not be trained. Check if KDDTrain+.txt is in the 'data' folder.", 500
 
         # Load and preprocess the uploaded data
@@ -111,10 +127,18 @@ def upload_file():
         # Calculate distances to the nearest cluster centroid
         distances = kmeans_model.transform(df_test_scaled).min(axis=1)
         
-        # Set a threshold for anomaly detection (e.g., 95th percentile of distances from training)
-        # For simplicity, we'll use a pre-calculated value or a simple statistical measure.
-        # A more robust approach would be to calculate this from the training data distances.
-        threshold = np.percentile(kmeans_model.transform(scaler.transform(pd.DataFrame(columns=data_columns).reindex(columns=data_columns, fill_value=0))).min(axis=1), 95) if 'df_normal_scaled' in locals() else 10 # Fallback threshold
+        # Set a threshold for anomaly detection
+        # A simple approach: anomalies are points further than 99% of the training points
+        # We calculate the threshold from the training data distances
+        # Note: This part is simplified. For a real system, threshold tuning is critical.
+        if 'df_normal_scaled' in locals():
+             train_distances = kmeans_model.transform(df_normal_scaled).min(axis=1)
+             threshold = np.percentile(train_distances, 99)
+        else:
+            # Fallback if we loaded the model and don't have train_distances in memory
+            # A pre-computed or estimated threshold would be better here.
+            # For this example, we'll set a fixed, potentially less accurate threshold.
+            threshold = 15 
         
         # Identify anomalies
         anomalies_mask = distances > threshold
@@ -123,5 +147,5 @@ def upload_file():
         return render_template('index.html', results=anomalies)
 
 if __name__ == '__main__':
-    train_model() # Train the model on startup
+    load_or_train_model() # Load or train the model on startup
     app.run(debug=True, use_reloader=False)
