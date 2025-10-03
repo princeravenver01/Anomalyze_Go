@@ -3,31 +3,100 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anomalyze - Network Anomaly Detection</title>
+    <title>Anomalyze - Network Traffic Anomaly Detection</title>
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
   </head>
   <body>
-    <header>
+    <div class="container">
       <h1>Anomalyze</h1>
-      <p>Network Anomaly Detection using K-Means Clustering</p>
-    </header>
-    <main>
-      <div class="container">
-        <div class="upload-section">
-          <h2>Upload Network Traffic Data</h2>
-          <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".csv,.txt" />
-            <button type="submit">Analyze</button>
-          </form>
+      <p>
+        Upload network traffic data to detect anomalies using K-Means clustering
+      </p>
+
+      <form
+        method="POST"
+        action="/upload"
+        enctype="multipart/form-data"
+        class="upload-form"
+      >
+        <input type="file" name="file" accept=".txt,.csv" required />
+        <button type="submit">Analyze</button>
+      </form>
+
+      {% if metrics %}
+      <div class="metrics-section">
+        <h2>Model Performance Metrics</h2>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <h3>Accuracy</h3>
+            <p class="metric-value">
+              {{ "%.2f%%" | format(metrics.accuracy * 100) }}
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3>Precision</h3>
+            <p class="metric-value">
+              {{ "%.2f%%" | format(metrics.precision * 100) }}
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3>Recall</h3>
+            <p class="metric-value">
+              {{ "%.2f%%" | format(metrics.recall * 100) }}
+            </p>
+          </div>
+          <div class="metric-card">
+            <h3>F1-Score</h3>
+            <p class="metric-value">
+              {{ "%.2f%%" | format(metrics.f1_score * 100) }}
+            </p>
+          </div>
         </div>
-        {% if results is not none and not results.empty %}
-        <div class="results-section">
-          <h2>Analysis Results</h2>
-          <h3>Anomalies Detected</h3>
-          <table>
+
+        <div class="stats-section">
+          <h3>Detection Statistics</h3>
+          <table class="stats-table">
+            <tr>
+              <td>Total Samples:</td>
+              <td>{{ metrics.total_samples }}</td>
+            </tr>
+            <tr>
+              <td>Actual Anomalies:</td>
+              <td>{{ metrics.actual_anomalies }}</td>
+            </tr>
+            <tr>
+              <td>Predicted Anomalies:</td>
+              <td>{{ metrics.predicted_anomalies }}</td>
+            </tr>
+            <tr>
+              <td>True Positives:</td>
+              <td>{{ metrics.true_positives }}</td>
+            </tr>
+            <tr>
+              <td>False Positives:</td>
+              <td>{{ metrics.false_positives }}</td>
+            </tr>
+            <tr>
+              <td>True Negatives:</td>
+              <td>{{ metrics.true_negatives }}</td>
+            </tr>
+            <tr>
+              <td>False Negatives:</td>
+              <td>{{ metrics.false_negatives }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      {% endif %} {% if results is not none and not results.empty %}
+      <div class="results-section">
+        <h2>Analysis Results</h2>
+        <p>Found {{ results | length }} anomalous connections:</p>
+
+        <div class="table-container">
+          <table class="results-table">
             <thead>
               <tr>
                 {% for col in results.columns %}
@@ -36,7 +105,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for row in results.values %}
+              {% for _, row in results.iterrows() %}
               <tr>
                 {% for value in row %}
                 <td>{{ value }}</td>
@@ -46,8 +115,8 @@
             </tbody>
           </table>
         </div>
-        {% endif %}
       </div>
-    </main>
+      {% endif %}
+    </div>
   </body>
 </html>
