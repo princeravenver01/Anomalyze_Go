@@ -4,9 +4,10 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import os
-from werkzeug.utils import secure_filename
 from utils.preprocessing import load_and_preprocess_data
 import joblib
+import io
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 
 app = Flask(__name__)
 
@@ -79,69 +80,73 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global kmeans_model, scaler, data_columns
-
     if 'file' not in request.files:
-        return redirect(request.url)
-    
+        return "No file part"
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return "No selected file"
 
     if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-
-        #Ensure the model is loaded or trained
-        if kmeans_model is None:
-            load_or_train_model()
-            if kmeans_model is None:
-                return "Error: Model could not be trained. Check if KDDTrain+.txt is in the 'data' folder.", 500
-
-        #Load and preprocess the uploaded data
-        df_test_original = pd.read_csv(filepath, header=None, names=[
-            'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
-            'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins',
-            'logged_in', 'num_compromised', 'root_shell', 'su_attempted',
-            'num_root', 'num_file_creations', 'num_shells', 'num_access_files',
-            'num_outbound_cmds', 'is_host_login', 'is_guest_login', 'count',
-            'srv_count', 'serror_rate', 'srv_serror_rate', 'rerror_rate',
-            'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
-            'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count',
-            'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
-            'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
-            'dst_host_serror_rate', 'dst_host_srv_serror_rate',
-            'dst_host_rerror_rate', 'dst_host_srv_rerror_rate',
-            'label', 'difficulty'
-        ])
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        stream.seek(0)
+        df_test_original = pd.read_csv(stream, header=None)
         
-        df_test = load_and_preprocess_data(filepath)
+        stream.seek(0)
+        df_test = load_and_preprocess_data(stream)
+
+        # Check if the file has labels (for accuracy calculation)
+        has_labels = 'label' in df_test.columns
+        true_labels = None
         
-        #Align columns with the training data
+        if has_labels:
+            # Extract true labels before removing them
+            true_labels = df_test['label'].copy()
+            # Convert to binary: 'normal' = 0, anything else = 1 (anomaly)
+            true_labels_binary = (true_labels != 'normal').astype(int)
+            df_test = df_test.drop('label', axis=1)
+
         df_test = df_test.reindex(columns=data_columns, fill_value=0)
-
-        #Scale the test data
         df_test_scaled = scaler.transform(df_test)
-
-        #Calculate distances to the nearest cluster centroid
         distances = kmeans_model.transform(df_test_scaled).min(axis=1)
-        
-        #Set a threshold for anomaly detection
-        #We calculate the threshold from the training data distances
-        if 'df_normal_scaled' in locals():
-             train_distances = kmeans_model.transform(df_normal_scaled).min(axis=1)
-             threshold = np.percentile(train_distances, 99)
-        else:
-            #Fallback if we loaded the model and don't have train_distances in memory
-            #We set a fixed, potentially less accurate threshold.
-            threshold = 15 
-        
-        #Identify anomalies
+
+        # Use the pre-loaded threshold
         anomalies_mask = distances > threshold
         anomalies = df_test_original[anomalies_mask]
+        
+        # Calculate accuracy metrics if labels are available
+        accuracy_metrics = None
+        if has_labels:
+            # Our predictions: 1 = anomaly, 0 = normal
+            predicted_labels = anomalies_mask.astype(int)
+            
+            # Calculate metrics
+            accuracy = accuracy_score(true_labels_binary, predicted_labels)
+            precision = precision_score(true_labels_binary, predicted_labels, zero_division=0)
+            recall = recall_score(true_labels_binary, predicted_labels, zero_division=0)
+            f1 = f1_score(true_labels_binary, predicted_labels, zero_division=0)
+            
+            # Count statistics
+            total_samples = len(true_labels_binary)
+            actual_anomalies = sum(true_labels_binary)
+            predicted_anomalies = sum(predicted_labels)
+            
+            accuracy_metrics = {
+                'accuracy': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1_score': f1,
+                'total_samples': total_samples,
+                'actual_anomalies': actual_anomalies,
+                'predicted_anomalies': predicted_anomalies,
+                'true_positives': sum((true_labels_binary == 1) & (predicted_labels == 1)),
+                'false_positives': sum((true_labels_binary == 0) & (predicted_labels == 1)),
+                'true_negatives': sum((true_labels_binary == 0) & (predicted_labels == 0)),
+                'false_negatives': sum((true_labels_binary == 1) & (predicted_labels == 0))
+            }
 
-        return render_template('index.html', results=anomalies)
+        return render_template('index.html', results=anomalies, metrics=accuracy_metrics)
+
+    return "File upload failed"
 
 if __name__ == '__main__':
     load_or_train_model() #Load or train the model on startup
