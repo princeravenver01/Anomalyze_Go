@@ -7,7 +7,7 @@ import os
 from utils.preprocessing import load_and_preprocess_data
 import joblib
 import io
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score
 
 app = Flask(__name__)
 
@@ -52,7 +52,7 @@ def index():
     if kmeans_model is None:
         if not load_model():
             return "Error: Could not load model files. Please check server logs."
-    return render_template('index.html', results=None, metrics=None)
+    return render_template('index.html', results=None, accuracy=None)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -80,7 +80,7 @@ def upload_file():
 
             # Check if the file has labels (for accuracy calculation)
             has_labels = 'label' in df_test.columns
-            true_labels = None
+            accuracy_percentage = None
             
             if has_labels:
                 # Extract true labels before removing them
@@ -97,38 +97,13 @@ def upload_file():
             anomalies_mask = distances > threshold
             anomalies = df_test_original[anomalies_mask]
             
-            # Calculate accuracy metrics if labels are available
-            accuracy_metrics = None
+            # Calculate only accuracy if labels are available
             if has_labels:
-                # Our predictions: 1 = anomaly, 0 = normal
                 predicted_labels = anomalies_mask.astype(int)
-                
-                # Calculate metrics
                 accuracy = accuracy_score(true_labels_binary, predicted_labels)
-                precision = precision_score(true_labels_binary, predicted_labels, zero_division=0)
-                recall = recall_score(true_labels_binary, predicted_labels, zero_division=0)
-                f1 = f1_score(true_labels_binary, predicted_labels, zero_division=0)
-                
-                # Count statistics
-                total_samples = len(true_labels_binary)
-                actual_anomalies = sum(true_labels_binary)
-                predicted_anomalies = sum(predicted_labels)
-                
-                accuracy_metrics = {
-                    'accuracy': accuracy,
-                    'precision': precision,
-                    'recall': recall,
-                    'f1_score': f1,
-                    'total_samples': total_samples,
-                    'actual_anomalies': actual_anomalies,
-                    'predicted_anomalies': predicted_anomalies,
-                    'true_positives': sum((true_labels_binary == 1) & (predicted_labels == 1)),
-                    'false_positives': sum((true_labels_binary == 0) & (predicted_labels == 1)),
-                    'true_negatives': sum((true_labels_binary == 0) & (predicted_labels == 0)),
-                    'false_negatives': sum((true_labels_binary == 1) & (predicted_labels == 0))
-                }
+                accuracy_percentage = accuracy * 100  # Convert to percentage
 
-            return render_template('index.html', results=anomalies, metrics=accuracy_metrics)
+            return render_template('index.html', results=anomalies, accuracy=accuracy_percentage)
             
         except Exception as e:
             return f"Error processing file: {str(e)}"
