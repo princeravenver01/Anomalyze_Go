@@ -26,97 +26,133 @@
         <button type="submit">Analyze</button>
       </form>
 
-      {% if metrics %}
-      <div class="metrics-section">
-        <h2>Model Performance Metrics</h2>
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <h3>Accuracy</h3>
-            <p class="metric-value">
-              {{ "%.2f%%" | format(metrics.accuracy * 100) }}
-            </p>
-          </div>
-          <div class="metric-card">
-            <h3>Precision</h3>
-            <p class="metric-value">
-              {{ "%.2f%%" | format(metrics.precision * 100) }}
-            </p>
-          </div>
-          <div class="metric-card">
-            <h3>Recall</h3>
-            <p class="metric-value">
-              {{ "%.2f%%" | format(metrics.recall * 100) }}
-            </p>
-          </div>
-          <div class="metric-card">
-            <h3>F1-Score</h3>
-            <p class="metric-value">
-              {{ "%.2f%%" | format(metrics.f1_score * 100) }}
-            </p>
-          </div>
-        </div>
-
-        <div class="stats-section">
-          <h3>Detection Statistics</h3>
-          <table class="stats-table">
-            <tr>
-              <td>Total Samples:</td>
-              <td>{{ metrics.total_samples }}</td>
-            </tr>
-            <tr>
-              <td>Actual Anomalies:</td>
-              <td>{{ metrics.actual_anomalies }}</td>
-            </tr>
-            <tr>
-              <td>Predicted Anomalies:</td>
-              <td>{{ metrics.predicted_anomalies }}</td>
-            </tr>
-            <tr>
-              <td>True Positives:</td>
-              <td>{{ metrics.true_positives }}</td>
-            </tr>
-            <tr>
-              <td>False Positives:</td>
-              <td>{{ metrics.false_positives }}</td>
-            </tr>
-            <tr>
-              <td>True Negatives:</td>
-              <td>{{ metrics.true_negatives }}</td>
-            </tr>
-            <tr>
-              <td>False Negatives:</td>
-              <td>{{ metrics.false_negatives }}</td>
-            </tr>
-          </table>
+      {% if accuracy is not none %}
+      <div class="accuracy-section">
+        <h2>Model Accuracy</h2>
+        <div class="accuracy-display">
+          <span class="accuracy-value">{{ "%.2f%%"|format(accuracy) }}</span>
         </div>
       </div>
       {% endif %} {% if results is not none and not results.empty %}
       <div class="results-section">
-        <h2>Analysis Results</h2>
-        <p>Found {{ results | length }} anomalous connections:</p>
+        <h2>Detected Anomalies</h2>
+        <p>
+          Found <strong>{{ results|length }}</strong> anomalous network
+          connections:
+        </p>
 
         <div class="table-container">
           <table class="results-table">
             <thead>
               <tr>
-                {% for col in results.columns %}
-                <th>{{ col }}</th>
-                {% endfor %}
+                <th>Duration</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th>Flag</th>
+                <th>Src Bytes</th>
+                <th>Dst Bytes</th>
+                <th>Failed Logins</th>
+                <th>Count</th>
+                <th>Srv Count</th>
+                <th>Error Rate</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for _, row in results.iterrows() %}
               <tr>
-                {% for value in row %}
-                <td>{{ value }}</td>
-                {% endfor %}
+                <td>
+                  {{ "%.2f"|format(row[0]) if row[0] is number else row[0] }}
+                </td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[4] }}</td>
+                <td>{{ row[5] }}</td>
+                <td>{{ row[10] }}</td>
+                <td>{{ row[22] }}</td>
+                <td>{{ row[23] }}</td>
+                <td>
+                  {{ "%.3f"|format(row[24]) if row[24] is number else row[24] }}
+                </td>
+                <td>
+                  <button
+                    class="details-btn"
+                    onclick="showDetails({{ loop.index0 }})"
+                  >
+                    View Details
+                  </button>
+                </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
+
+        <!-- Hidden details sections -->
+        {% for _, row in results.iterrows() %}
+        <div
+          id="details-{{ loop.index0 }}"
+          class="details-panel"
+          style="display: none"
+        >
+          <h3>Connection Details #{{ loop.index }}</h3>
+          <div class="details-grid">
+            <div class="detail-item">
+              <strong>Duration:</strong> {{ "%.2f"|format(row[0]) if row[0] is
+              number else row[0] }} seconds
+            </div>
+            <div class="detail-item">
+              <strong>Protocol Type:</strong> {{ row[1] }}
+            </div>
+            <div class="detail-item">
+              <strong>Service:</strong> {{ row[2] }}
+            </div>
+            <div class="detail-item"><strong>Flag:</strong> {{ row[3] }}</div>
+            <div class="detail-item">
+              <strong>Source Bytes:</strong> {{ row[4] }}
+            </div>
+            <div class="detail-item">
+              <strong>Destination Bytes:</strong> {{ row[5] }}
+            </div>
+            <div class="detail-item">
+              <strong>Failed Login Attempts:</strong> {{ row[10] }}
+            </div>
+            <div class="detail-item">
+              <strong>Root Shell:</strong> {{ row[13] }}
+            </div>
+            <div class="detail-item">
+              <strong>Connection Count:</strong> {{ row[22] }}
+            </div>
+            <div class="detail-item">
+              <strong>Service Count:</strong> {{ row[23] }}
+            </div>
+            <div class="detail-item">
+              <strong>Error Rate:</strong> {{ "%.3f"|format(row[24]) if row[24]
+              is number else row[24] }}
+            </div>
+            <div class="detail-item">
+              <strong>Same Service Rate:</strong> {{ "%.3f"|format(row[28]) if
+              row[28] is number else row[28] }}
+            </div>
+          </div>
+          <button class="close-btn" onclick="hideDetails({{ loop.index0 }})">
+            Close
+          </button>
+        </div>
+        {% endfor %}
       </div>
       {% endif %}
     </div>
+
+    <script>
+      function showDetails(index) {
+        document.getElementById("details-" + index).style.display = "block";
+      }
+
+      function hideDetails(index) {
+        document.getElementById("details-" + index).style.display = "none";
+      }
+    </script>
   </body>
 </html>
