@@ -18,7 +18,7 @@ MODELS_FOLDER = 'models'
 kmeans_model = None
 scaler = None
 data_columns = None
-threshold = None
+optimal_threshold = None
 
 # Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
@@ -26,21 +26,67 @@ SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
 THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'threshold.joblib')
 
+def find_optimal_threshold():
+    """Find the threshold that maximizes accuracy on the training data."""
+    print("Finding optimal threshold...")
+
+    # Load training data
+    train_data_path = 'data/KDDTrain+.txt'
+    df_train = load_and_preprocess_data(train_data_path)
+
+    # Separate nmormal and anomaly data
+    df_train_features = df_train.drop('label', axis = 1)
+    true_labels = (df_train['label'] != 'normal').astype(int)
+    
+    #Scale the data
+    df_train_scaled = scaler.transform(df_train_features)
+
+    # Calculate distances for all training data
+    distances = kmeans_model.transform(df_train_scaled).min(axis = 1)
+
+    # Try different thresholds and find the one with the best accuracy
+    best_threshold = None
+    best_accuracy = 0
+
+    #Test thresholds from 90th to 99.9th percentile
+    percentiles = np.arange(90, 99.9, 0.5)
+
+    for percentile in percentiles:
+        threshold = np.percentile(distances, percentile)
+        predicted_labels = (distances > threshold).astyoe(int)
+        accuracy = accuracy_score(true_labels, predicted_labels)
+
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_threshold = threshold
+    
+    print(f"Optimal threshold: {best_threshold} (accuracy: {best_accuracy:.4f})")
+    return best_threshold
+
 def load_model():
-    """Loads the pre-trained model and the pre-calculated threshold."""
-    global kmeans_model, scaler, data_columns, threshold
+    """Loads the pre-trained model and finds the optimal threshold."""
+    global kmeans_model, scaler, data_columns, threshold, optimal_threshold
     
     try:
-        # Check if all files exist
-        if not all(os.path.exists(p) for p in [MODEL_PATH, SCALER_PATH, COLUMNS_PATH, THRESHOLD_PATH]):
-            raise FileNotFoundError("Model files not found. Please ensure all .joblib files are in the 'models' directory.")
+        # Check if all files and the basic model files exists
+        if not all(os.path.exists(p) for p in [MODEL_PATH, SCALER_PATH, COLUMNS_PATH]):
+            raise FileNotFoundError("Model files not found. Ensure that the model exists.")
 
-        print("Loading saved model and threshold from disk...")
+        print("Loading saved model from disk...")
         kmeans_model = joblib.load(MODEL_PATH)
         scaler = joblib.load(SCALER_PATH)
         data_columns = joblib.load(COLUMNS_PATH)
-        threshold = joblib.load(THRESHOLD_PATH)
-        print(f"Model and threshold ({threshold}) loaded successfully.")
+
+        # Check if optimal threshold exists, if not, calculate it
+
+        if os.path.exists(THRESHOLD_PATH):
+            optimal_threshold = joblib.load(THRESHOLD_PATH)
+            print(f"Loaded optimal threshold: {optimal_threshold}")
+        else:
+            optimal_threshold = find_optimal_threshold()
+            joblib.dump(optimal_threshold, THRESHOLD_PATH)
+            print("Optimal threshold calculated and saved.")
+        
         return True
     except Exception as e:
         print(f"Error loading model: {e}")
@@ -56,12 +102,12 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global kmeans_model, scaler, data_columns, threshold
+    global kmeans_model, scaler, data_columns, optimal_threshold
     
     # Ensure model is loaded
-    if kmeans_model is None or threshold is None:
+    if kmeans_model is None or optimal_threshold is None:
         if not load_model():
-            return "Error: Could not load model files. Please ensure all model files are present."
+            return "Error: Could not load model files."
     
     if 'file' not in request.files:
         return "No file part"
@@ -117,7 +163,6 @@ if __name__ == '__main__':
         print("Model loaded successfully. Starting server...")
         app.run(debug=True, use_reloader=False)
     else:
-        print("Failed to load model. Please check that all .joblib files exist in the 'models' folder.")
+        print("Failed to load model.")
 else:
-    # For Vercel deployment
     load_model()
