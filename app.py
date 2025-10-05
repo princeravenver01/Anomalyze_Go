@@ -8,84 +8,110 @@ from utils.preprocessing import load_and_preprocess_data
 import joblib
 import io
 from sklearn.metrics import accuracy_score
+import requests
 
 app = Flask(__name__)
 
 # Configure models folder
 MODELS_FOLDER = 'models'
 
-# Global variables - Initialize them properly
+# Global variables
 kmeans_model = None
 scaler = None
 data_columns = None
 optimal_threshold = None
 
+# Render data server URL
+RENDER_DATA_URL = "https://dataset-host.onrender.com"  # To fetch the data through cloud service sa render
+
 # Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
 SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
-THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'threshold.joblib')
+THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'optimal_threshold.joblib')
+
+def download_training_data():
+    """Download training data from Render server"""
+    try:
+        print("Downloading training data from Render...")
+        response = requests.get(f"{RENDER_DATA_URL}/data/KDDTrain+.txt", timeout=30)
+        response.raise_for_status()
+        
+        # Create a file-like object from the downloaded content
+        return io.StringIO(response.text)
+    except Exception as e:
+        print(f"Error downloading training data: {e}")
+        return None
 
 def find_optimal_threshold():
     """Find the threshold that maximizes accuracy on the training data."""
-    print("Finding optimal threshold...")
-
-    # Load training data
-    train_data_path = 'data/KDDTrain+.txt'
-    df_train = load_and_preprocess_data(train_data_path)
-
-    # Separate nmormal and anomaly data
-    df_train_features = df_train.drop('label', axis = 1)
-    true_labels = (df_train['label'] != 'normal').astype(int)
+    print("Finding optimal threshold using remote training data...")
     
-    #Scale the data
-    df_train_scaled = scaler.transform(df_train_features)
-
-    # Calculate distances for all training data
-    distances = kmeans_model.transform(df_train_scaled).min(axis = 1)
-
-    # Try different thresholds and find the one with the best accuracy
-    best_threshold = None
-    best_accuracy = 0
-
-    #Test thresholds from 90th to 99.9th percentile
-    percentiles = np.arange(90, 99.9, 0.5)
-
-    for percentile in percentiles:
-        threshold = np.percentile(distances, percentile)
-        predicted_labels = (distances > threshold).astyoe(int)
-        accuracy = accuracy_score(true_labels, predicted_labels)
-
-        if accuracy > best_accuracy:
-            best_accuracy = accuracy
-            best_threshold = threshold
+    # Download training data from Render
+    train_data_stream = download_training_data()
+    if train_data_stream is None:
+        print("Could not download training data. Using fallback threshold.")
+        return 15.0  # Fallback threshold
     
-    print(f"Optimal threshold: {best_threshold} (accuracy: {best_accuracy:.4f})")
-    return best_threshold
+    try:
+        df_train = load_and_preprocess_data(train_data_stream)
+        
+        # Separate normal and anomaly data
+        df_train_features = df_train.drop('label', axis=1)
+        df_train_features = df_train_features.reindex(columns=data_columns, fill_value=0)
+        true_labels = (df_train['label'] != 'normal').astype(int)
+        
+        # Scale the data
+        df_train_scaled = scaler.transform(df_train_features)
+        
+        # Calculate distances for all training data
+        distances = kmeans_model.transform(df_train_scaled).min(axis=1)
+        
+        # Try different thresholds and find the one with best accuracy
+        best_threshold = None
+        best_accuracy = 0
+        
+        # Test thresholds from 90th to 99.9th percentile
+        percentiles = np.arange(90, 99.9, 0.5)
+        
+        for percentile in percentiles:
+            threshold = np.percentile(distances, percentile)
+            predicted_labels = (distances > threshold).astype(int)
+            accuracy = accuracy_score(true_labels, predicted_labels)
+            
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                best_threshold = threshold
+        
+        print(f"Optimal threshold: {best_threshold} (accuracy: {best_accuracy:.4f})")
+        return best_threshold
+        
+    except Exception as e:
+        print(f"Error calculating optimal threshold: {e}")
+        return 15.0  # Fallback threshold
 
 def load_model():
     """Loads the pre-trained model and finds the optimal threshold."""
-    global kmeans_model, scaler, data_columns, threshold, optimal_threshold
+    global kmeans_model, scaler, data_columns, optimal_threshold
     
     try:
-        # Check if all files and the basic model files exists
+        # Check if basic model files exist
         if not all(os.path.exists(p) for p in [MODEL_PATH, SCALER_PATH, COLUMNS_PATH]):
-            raise FileNotFoundError("Model files not found. Ensure that the model exists.")
+            raise FileNotFoundError("Basic model files not found.")
 
         print("Loading saved model from disk...")
         kmeans_model = joblib.load(MODEL_PATH)
         scaler = joblib.load(SCALER_PATH)
         data_columns = joblib.load(COLUMNS_PATH)
-
-        # Check if optimal threshold exists, if not, calculate it
-
+        
+        # Check if optimal threshold exists, if not, calculate it using remote data
         if os.path.exists(THRESHOLD_PATH):
             optimal_threshold = joblib.load(THRESHOLD_PATH)
             print(f"Loaded optimal threshold: {optimal_threshold}")
         else:
             optimal_threshold = find_optimal_threshold()
-            joblib.dump(optimal_threshold, THRESHOLD_PATH)
-            print("Optimal threshold calculated and saved.")
+            # Note: We can't save to disk on Vercel, so we calculate it each time
+            print(f"Calculated optimal threshold: {optimal_threshold}")
         
         return True
     except Exception as e:
@@ -94,17 +120,15 @@ def load_model():
 
 @app.route('/')
 def index():
-    # Ensure model is loaded
     if kmeans_model is None:
         if not load_model():
-            return "Error: Could not load model files. Please check server logs."
+            return "Error: Could not load model files."
     return render_template('index.html', results=None, accuracy=None)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global kmeans_model, scaler, data_columns, optimal_threshold
     
-    # Ensure model is loaded
     if kmeans_model is None or optimal_threshold is None:
         if not load_model():
             return "Error: Could not load model files."
@@ -124,14 +148,11 @@ def upload_file():
             stream.seek(0)
             df_test = load_and_preprocess_data(stream)
 
-            # Check if the file has labels (for accuracy calculation)
             has_labels = 'label' in df_test.columns
             accuracy_percentage = None
             
             if has_labels:
-                # Extract true labels before removing them
                 true_labels = df_test['label'].copy()
-                # Convert to binary: 'normal' = 0, anything else = 1 (anomaly)
                 true_labels_binary = (true_labels != 'normal').astype(int)
                 df_test = df_test.drop('label', axis=1)
 
@@ -139,15 +160,14 @@ def upload_file():
             df_test_scaled = scaler.transform(df_test)
             distances = kmeans_model.transform(df_test_scaled).min(axis=1)
 
-            # Use the pre-loaded threshold
-            anomalies_mask = distances > threshold
+            # Use the optimal threshold
+            anomalies_mask = distances > optimal_threshold
             anomalies = df_test_original[anomalies_mask]
             
-            # Calculate only accuracy if labels are available
             if has_labels:
                 predicted_labels = anomalies_mask.astype(int)
                 accuracy = accuracy_score(true_labels_binary, predicted_labels)
-                accuracy_percentage = accuracy * 100  # Convert to percentage
+                accuracy_percentage = accuracy * 100
 
             return render_template('index.html', results=anomalies, accuracy=accuracy_percentage)
             
@@ -156,13 +176,5 @@ def upload_file():
 
     return "File upload failed"
 
-# Try to load the model when the module is imported
-if __name__ == '__main__':
-    print("Starting application...")
-    if load_model():
-        print("Model loaded successfully. Starting server...")
-        app.run(debug=True, use_reloader=False)
-    else:
-        print("Failed to load model.")
-else:
-    load_model()
+# Load the model when the application starts
+load_model()
