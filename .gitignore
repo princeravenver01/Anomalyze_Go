@@ -1,1 +1,15 @@
-/data/
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Large data files
+data/
+
+# Local environment
+.env
+.venv/
+
+# OS files
+.DS_Store
+Thumbs.db
