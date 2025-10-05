@@ -21,7 +21,7 @@ data_columns = None
 optimal_threshold = None
 
 # Paths for saved model files
-MODEL_PATH = os.path.join(MODELS_FOLDER, 'ensemble_models.joblib')  # <-- Changed name
+MODEL_PATH = os.path.join(MODELS_FOLDER, 'ensemble_models.joblib')
 SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
 THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'optimal_threshold.joblib')
