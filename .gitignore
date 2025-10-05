@@ -3,9 +3,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Large data files
-data/
-
 # Local environment
 .env
 .venv/

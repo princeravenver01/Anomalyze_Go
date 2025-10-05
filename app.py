@@ -8,7 +8,6 @@ from utils.preprocessing import load_and_preprocess_data
 import joblib
 import io
 from sklearn.metrics import accuracy_score
-import requests
 
 app = Flask(__name__)
 
@@ -21,57 +20,31 @@ scaler = None
 data_columns = None
 optimal_threshold = None
 
-# Render data server URL
-RENDER_DATA_URL = "https://dataset-host.onrender.com"  # To fetch the data through cloud service sa render
-
 # Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
 SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
 THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'optimal_threshold.joblib')
 
-def download_training_data():
-    """Download training data from Render server"""
-    try:
-        print("Downloading training data from Render...")
-        response = requests.get(f"{RENDER_DATA_URL}/data/KDDTrain+.txt", timeout=30)
-        response.raise_for_status()
-        
-        # Create a file-like object from the downloaded content
-        return io.StringIO(response.text)
-    except Exception as e:
-        print(f"Error downloading training data: {e}")
-        return None
-
 def find_optimal_threshold():
     """Find the threshold that maximizes accuracy on the training data."""
-    print("Finding optimal threshold using remote training data...")
+    print("Finding optimal threshold...")
     
-    # Download training data from Render
-    train_data_stream = download_training_data()
-    if train_data_stream is None:
-        print("Could not download training data. Using fallback threshold.")
-        return 15.0  # Fallback threshold
+    train_data_path = 'data/KDDTrain+.txt'
+    if not os.path.exists(train_data_path):
+        print("Training data not found, using fallback threshold")
+        return 15.0
     
     try:
-        df_train = load_and_preprocess_data(train_data_stream)
-        
-        # Separate normal and anomaly data
+        df_train = load_and_preprocess_data(train_data_path)
         df_train_features = df_train.drop('label', axis=1)
         df_train_features = df_train_features.reindex(columns=data_columns, fill_value=0)
         true_labels = (df_train['label'] != 'normal').astype(int)
-        
-        # Scale the data
         df_train_scaled = scaler.transform(df_train_features)
-        
-        # Calculate distances for all training data
         distances = kmeans_model.transform(df_train_scaled).min(axis=1)
         
-        # Try different thresholds and find the one with best accuracy
         best_threshold = None
         best_accuracy = 0
-        
-        # Test thresholds from 90th to 99.9th percentile
         percentiles = np.arange(90, 99.9, 0.5)
         
         for percentile in percentiles:
@@ -87,30 +60,27 @@ def find_optimal_threshold():
         return best_threshold
         
     except Exception as e:
-        print(f"Error calculating optimal threshold: {e}")
-        return 15.0  # Fallback threshold
+        print(f"Error calculating threshold: {e}")
+        return 15.0
 
 def load_model():
     """Loads the pre-trained model and finds the optimal threshold."""
     global kmeans_model, scaler, data_columns, optimal_threshold
     
     try:
-        # Check if basic model files exist
         if not all(os.path.exists(p) for p in [MODEL_PATH, SCALER_PATH, COLUMNS_PATH]):
-            raise FileNotFoundError("Basic model files not found.")
+            raise FileNotFoundError("Model files not found.")
 
         print("Loading saved model from disk...")
         kmeans_model = joblib.load(MODEL_PATH)
         scaler = joblib.load(SCALER_PATH)
         data_columns = joblib.load(COLUMNS_PATH)
         
-        # Check if optimal threshold exists, if not, calculate it using remote data
         if os.path.exists(THRESHOLD_PATH):
             optimal_threshold = joblib.load(THRESHOLD_PATH)
             print(f"Loaded optimal threshold: {optimal_threshold}")
         else:
             optimal_threshold = find_optimal_threshold()
-            # Note: We can't save to disk on Vercel, so we calculate it each time
             print(f"Calculated optimal threshold: {optimal_threshold}")
         
         return True
@@ -160,7 +130,6 @@ def upload_file():
             df_test_scaled = scaler.transform(df_test)
             distances = kmeans_model.transform(df_test_scaled).min(axis=1)
 
-            # Use the optimal threshold
             anomalies_mask = distances > optimal_threshold
             anomalies = df_test_original[anomalies_mask]
             
@@ -176,5 +145,8 @@ def upload_file():
 
     return "File upload failed"
 
-# Load the model when the application starts
-load_model()
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+else:
+    load_model()
