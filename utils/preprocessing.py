@@ -124,3 +124,12 @@ def enhanced_preprocessing_for_kmeans(df):
             df = df.drop(col, axis = 1)
 
     # Robust scaling for K-means
+    numeric_columns = df.select_dtypes(inlcude = [np.number]).columns
+    if 'label' in numeric_columns:
+        numeric_columns = numeric_columns.drop('label')
+
+    # Use RobustScaler instead of StandardScaler for better clustering
+    scaler = RobustScaler()
+    df[numeric_columns] = scaler.fit_transform(df[numeric_columns])
+
+    return df
