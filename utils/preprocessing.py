@@ -97,3 +97,14 @@ def create_advance_network_features(df):
     # Host behavior clustering features
     df_enhanced['host_diversity'] = (df_enhanced['dst_host_diff_srv_rate'] *
                                      df_enhanced['dst_host_srv_count'])
+    
+    # Attack pattern indicator
+    df_enhanced['sus_flag_ratio'] = (df_enhanced['su_attempted'] + df_enhanced['root_shell']) / 2
+    df_enhanced['land_flag'] = df_enhanced['land']
+
+    # Network flow characteristics
+    df_enhanced['same_srv_rate_high'] = (df_enhanced['same_srv_rate'] > 0.8).astype(int)
+    df_enhanced['diff_srv_rate_high'] = (df_enhanced['diff_srv_rate'] > 0.8).astype(int)
+
+    return df_enhanced
+
