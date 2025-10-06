@@ -93,3 +93,7 @@ def create_advance_network_features(df):
         df_enhanced['duration_category'] = pd.cut(df_enhanced['duration'],
                                                   bins = [0, 1,10, 100, float('inf')],
                                                   labels = [0, 1, 2, 3])
+        
+    # Host behavior clustering features
+    df_enhanced['host_diversity'] = (df_enhanced['dst_host_diff_srv_rate'] *
+                                     df_enhanced['dst_host_srv_count'])
