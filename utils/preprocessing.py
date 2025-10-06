@@ -108,3 +108,19 @@ def create_advance_network_features(df):
 
     return df_enhanced
 
+def enhanced_preprocessing_for_kmeans(df):
+    """Enhanced preprocessing specifically optimized for K-means clustering"""
+
+    # Apply feature engineering
+    df = create_advance_network_feature(df)
+
+    # Handle categorical variables better for clustering
+    categorical_columns = df.select_dtypes(include = ['object']).columns
+    for col in categorical_columns:
+        if col != 'label':
+            # Use frequency encoding for high cardinality categoricals
+            freq_encoding = df[col].value_counts().to_dict()
+            df[f'{col}_freq'] = df[col].map(freq_encoding)
+            df = df.drop(col, axis = 1)
+
+    # Robust scaling for K-means
