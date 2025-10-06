@@ -1,5 +1,5 @@
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler
 import numpy as np
 
 def load_and_preprocess_data(file_path):
@@ -74,3 +74,11 @@ def load_and_preprocess_data(file_path):
     except Exception as e:
         print(f"Error in processing: {e}")
         raise
+
+def create_advance_network_features(df):
+    """Create advance network-specific features optimized for K-means clustering"""
+    df_enhanced =df.copy()
+
+    # Traffic intensity ratios
+    df_enhanced['bytes_ratio'] = df_enhanced['src_bytes'] / (df_enhanced['dst_bytes'] + 1)
+    df_enhanced['total_bytes'] = df_enhanced['src_bytes'] + df_enhanced['dst_bytes']
