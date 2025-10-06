@@ -82,3 +82,14 @@ def create_advance_network_features(df):
     # Traffic intensity ratios
     df_enhanced['bytes_ratio'] = df_enhanced['src_bytes'] / (df_enhanced['dst_bytes'] + 1)
     df_enhanced['total_bytes'] = df_enhanced['src_bytes'] + df_enhanced['dst_bytes']
+
+    # Connection pattern features
+    df_enhanced['srv_rate'] = df_enhanced['srv_count'] / (df_enhanced['count'] + 1)
+    df_enhanced['error_density'] = (df_enhanced['serror_rate'] + df_enhanced['srv_error_rate']) / 2
+
+    # Protocol behavior patterns
+    if 'duration' in df_enhanced.columns:
+        df_enhanced['bytes_per_second'] = df_enhanced['total_bytes'] / (df_enhanced['duration'] + 0.001)
+        df_enhanced['duration_category'] = pd.cut(df_enhanced['duration'],
+                                                  bins = [0, 1,10, 100, float('inf')],
+                                                  labels = [0, 1, 2, 3])
