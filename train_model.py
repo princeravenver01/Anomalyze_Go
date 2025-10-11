@@ -246,13 +246,54 @@ def create_optimized_model():
     
     return True
 
+def create_optimized_kmeans_model():
+    """Create and save the optimized K-means ensemble model."""
+    print("Creating optimized K-means ensemble model...")
+    
+    train_data_path = 'data/KDDTrain+.txt'
+    if not os.path.exists(train_data_path):
+        print(f"ERROR: Training data not found at {train_data_path}")
+        return False
+
+    # Create advanced ensemble
+    ensemble_models, scaler, data_columns, model_scores = create_advanced_kmeans_ensemble()
+    
+    # Find optimal threshold
+    optimal_threshold, threshold_metrics = find_optimal_threshold_advanced(
+        ensemble_models, scaler, data_columns
+    )
+    
+    # Save all components
+    joblib.dump(ensemble_models, MODEL_PATH)
+    joblib.dump(scaler, SCALER_PATH)
+    joblib.dump(data_columns, COLUMNS_PATH)
+    joblib.dump(optimal_threshold, THRESHOLD_PATH)
+    
+    # Save model scores for weighted prediction
+    MODEL_SCORES_PATH = os.path.join(MODELS_FOLDER, 'model_scores.joblib')
+    joblib.dump(model_scores, MODEL_SCORES_PATH)
+    
+    # Save threshold metrics for analysis
+    THRESHOLD_METRICS_PATH = os.path.join(MODELS_FOLDER, 'threshold_metrics.joblib')
+    joblib.dump(threshold_metrics, THRESHOLD_METRICS_PATH)
+    
+    print(f"Enhanced K-means ensemble saved:")
+    print(f"- Models: {MODEL_PATH}")
+    print(f"- Scaler: {SCALER_PATH}")
+    print(f"- Columns: {COLUMNS_PATH}")
+    print(f"- Threshold: {THRESHOLD_PATH}")
+    print(f"- Model Scores: {MODEL_SCORES_PATH}")
+    print(f"- Threshold Metrics: {THRESHOLD_METRICS_PATH}")
+    
+    return True
+
 if __name__ == '__main__':
-    print("=== OPTIMIZED MODEL TRAINING ===")
-    print("This will test different numbers of clusters and find the best configuration.")
+    print("=== ENHANCED K-MEANS ENSEMBLE TRAINING ===")
+    print("This will create an advanced K-means ensemble with optimized features.")
     print()
     
-    if create_optimized_model():
-        print("\n✅ SUCCESS: Optimized model created!")
+    if create_optimized_kmeans_model():
+        print("\n✅ SUCCESS: Enhanced K-means ensemble created!")
         print("You can now run your main app.py to use the improved model.")
     else:
-        print("\n❌ FAILED: Could not create optimized model.")
+        print("\n❌ FAILED: Could not create enhanced K-means ensemble.")
