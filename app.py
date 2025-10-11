@@ -19,6 +19,7 @@ ensemble_models = None
 scaler = None
 data_columns = None
 optimal_threshold = None
+model_scores = None
 
 # Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'ensemble_models.joblib')
@@ -71,6 +72,56 @@ def ensemble_predict(models, data, threshold):
     # Use majority voting
     ensemble_pred = np.array(predictions).mean(axis=0)
     return (ensemble_pred > 0.5).astype(int)  # Majority vote
+
+def enhanced_ensemble_predict(models, model_scores, data, threshold):
+    """Enhanced ensemble prediction with weighted voting based on model quality"""
+    predictions = []
+    distances_list = []
+    weights = []
+    
+    # Calculate weights based on model quality (silhouette score)
+    total_silhouette = sum(score['silhouette'] for score in model_scores)
+    
+    for i, model in enumerate(models):
+        distances = model.transform(data).min(axis=1)
+        distances_list.append(distances)
+        
+        # Weight based on silhouette score (higher is better)
+        weight = model_scores[i]['silhouette'] / total_silhouette
+        weights.append(weight)
+        
+        pred = (distances > threshold).astype(int)
+        predictions.append(pred * weight)  # Apply weight
+    
+    # Weighted ensemble prediction
+    ensemble_pred = np.sum(predictions, axis=0)
+    
+    # Also calculate confidence scores
+    weighted_avg_distances = np.average(distances_list, axis=0, weights=weights)
+    confidence_scores = 1 / (1 + weighted_avg_distances)  # Higher distance = lower confidence
+    
+    # Threshold for final prediction (can be tuned)
+    final_predictions = (ensemble_pred > 0.5).astype(int)
+    
+    return final_predictions, confidence_scores, weighted_avg_distances
+
+def calculate_anomaly_severity(distances, threshold):
+    """Calculate severity levels for detected anomalies"""
+    severity_levels = []
+    
+    for distance in distances:
+        if distance <= threshold:
+            severity_levels.append('Normal')
+        elif distance <= threshold * 1.5:
+            severity_levels.append('Low')
+        elif distance <= threshold * 2.0:
+            severity_levels.append('Medium')
+        elif distance <= threshold * 3.0:
+            severity_levels.append('High')
+        else:
+            severity_levels.append('Critical')
+    
+    return severity_levels
 
 def load_model():
     """Loads the ensemble models and finds the optimal threshold."""
@@ -135,7 +186,8 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global ensemble_models, scaler, data_columns, optimal_threshold
+    start_time = time.time()
+    global ensemble_models, scaler, data_columns, optimal_threshold, model_scores
     
     if ensemble_models is None or optimal_threshold is None:
         if not load_model():
@@ -157,25 +209,58 @@ def upload_file():
             df_test = load_and_preprocess_data(stream)
 
             has_labels = 'label' in df_test.columns
-            accuracy_percentage = None
+            metrics = {}
             
             if has_labels:
                 true_labels = df_test['label'].copy()
                 true_labels_binary = (true_labels != 'normal').astype(int)
                 df_test = df_test.drop('label', axis=1)
 
+            # Apply enhanced preprocessing
+            from utils.preprocessing import enhanced_preprocessing_for_kmeans
+            df_test = enhanced_preprocessing_for_kmeans(df_test)
             df_test = df_test.reindex(columns=data_columns, fill_value=0)
             df_test_scaled = scaler.transform(df_test)
 
-            # Use ensemble prediction instead of single model
-            anomalies_mask = ensemble_predict(ensemble_models, df_test_scaled, optimal_threshold)
-            anomalies = df_test_original[anomalies_mask.astype(bool)]
+            # Use enhanced ensemble prediction
+            anomalies_mask, confidence_scores, distances = enhanced_ensemble_predict(
+                ensemble_models, model_scores, df_test_scaled, optimal_threshold
+            )
+            
+            # Calculate severity levels
+            severity_levels = calculate_anomaly_severity(distances, optimal_threshold)
+            
+            # Add confidence and severity to results
+            anomalies_indices = np.where(anomalies_mask)[0]
+            anomalies = df_test_original.iloc[anomalies_indices].copy()
+            
+            if len(anomalies) > 0:
+                anomalies['confidence'] = confidence_scores[anomalies_indices]
+                anomalies['severity'] = [severity_levels[i] for i in anomalies_indices]
+                anomalies['distance'] = distances[anomalies_indices]
             
             if has_labels:
+                from sklearn.metrics import precision_score, recall_score, f1_score
                 accuracy = accuracy_score(true_labels_binary, anomalies_mask)
-                accuracy_percentage = accuracy * 100
+                precision = precision_score(true_labels_binary, anomalies_mask, zero_division=0)
+                recall = recall_score(true_labels_binary, anomalies_mask, zero_division=0)
+                f1 = f1_score(true_labels_binary, anomalies_mask, zero_division=0)
+                
+                metrics = {
+                    'accuracy': accuracy * 100,
+                    'precision': precision * 100,
+                    'recall': recall * 100,
+                    'f1_score': f1 * 100,
+                    'total_samples': len(df_test_original),
+                    'anomalies_detected': len(anomalies),
+                    'processing_time': time.time() - start_time,
+                    'avg_confidence': np.mean(confidence_scores) * 100
+                }
 
-            return render_template('index.html', results=anomalies, accuracy=accuracy_percentage)
+            return render_template('index.html', 
+                                 results=anomalies, 
+                                 metrics=metrics,
+                                 accuracy=metrics.get('accuracy'))
             
         except Exception as e:
             return f"Error processing file: {str(e)}"
