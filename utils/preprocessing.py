@@ -75,7 +75,7 @@ def load_and_preprocess_data(file_path):
         print(f"Error in processing: {e}")
         raise
 
-def create_advance_network_features(df):
+def create_advanced_network_features(df):
     """Create advance network-specific features optimized for K-means clustering"""
     df_enhanced =df.copy()
 
@@ -112,7 +112,7 @@ def enhanced_preprocessing_for_kmeans(df):
     """Enhanced preprocessing specifically optimized for K-means clustering"""
 
     # Apply feature engineering
-    df = create_advance_network_feature(df)
+    df = create_advanced_network_features(df)
 
     # Handle categorical variables better for clustering
     categorical_columns = df.select_dtypes(include = ['object']).columns
