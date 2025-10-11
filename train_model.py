@@ -17,83 +17,85 @@ if not os.path.exists(MODELS_FOLDER):
     os.makedirs(MODELS_FOLDER)
 
 # Paths for saved model files
-MODEL_PATH = os.path.join(MODELS_FOLDER, 'kmeans_model.joblib')
+MODEL_PATH = os.path.join(MODELS_FOLDER, 'ensemble_models.joblib')
 SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
 THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'optimal_threshold.joblib')
 
-def create_advanced_kmeans_ensemble():
-    """Create an advanced K-means ensemble with different configurations"""
-    print("Creating advanced K-means ensemble...")
+def create_simple_ensemble():
+    """Create a simple but effective ensemble model"""
+    print("Creating simple ensemble models...")
     
     train_data_path = 'data/KDDTrain+.txt'
     df_train = load_and_preprocess_data(train_data_path)
     df_normal = df_train[df_train['label'] == 'normal']
     df_normal = df_normal.drop('label', axis=1)
     
-    # Apply enhanced preprocessing
-    from utils.preprocessing import enhanced_preprocessing_for_kmeans
-    df_normal = enhanced_preprocessing_for_kmeans(df_normal)
-    
     data_columns = df_normal.columns
-    
-    # Use RobustScaler for better K-means performance
-    from sklearn.preprocessing import RobustScaler
-    scaler = RobustScaler()
+    scaler = StandardScaler()
     df_normal_scaled = scaler.fit_transform(df_normal)
     
-    # Enhanced K-means configurations
-    kmeans_configs = [
-        # Different cluster numbers with optimized parameters
-        {'n_clusters': 8, 'init': 'k-means++', 'n_init': 20, 'max_iter': 500, 'random_state': 42},
-        {'n_clusters': 10, 'init': 'k-means++', 'n_init': 20, 'max_iter': 500, 'random_state': 42},
-        {'n_clusters': 12, 'init': 'k-means++', 'n_init': 20, 'max_iter': 500, 'random_state': 42},
-        
-        # Same clusters but different random states for diversity
-        {'n_clusters': 10, 'init': 'k-means++', 'n_init': 20, 'max_iter': 500, 'random_state': 123},
-        {'n_clusters': 10, 'init': 'k-means++', 'n_init': 20, 'max_iter': 500, 'random_state': 456},
-        
-        # MiniBatch K-means for different perspective
-        {'model_type': 'minibatch', 'n_clusters': 10, 'random_state': 42, 'batch_size': 1000},
+    # Create ensemble of models with different parameters
+    models = []
+    
+    # Different numbers of clusters
+    cluster_configs = [
+        {'n_clusters': 5, 'random_state': 42},
+        {'n_clusters': 8, 'random_state': 42},
+        {'n_clusters': 10, 'random_state': 42},
+        {'n_clusters': 8, 'random_state': 123},  # Same clusters, different seed
+        {'n_clusters': 8, 'random_state': 456}   # Another different seed
     ]
     
-    models = []
-    model_scores = []
-    
-    for i, config in enumerate(kmeans_configs):
-        print(f"Training K-means model {i+1}/{len(kmeans_configs)}...")
-        
-        if config.get('model_type') == 'minibatch':
-            config_copy = config.copy()
-            del config_copy['model_type']
-            model = MiniBatchKMeans(**config_copy)
-        else:
-            model = KMeans(**config)
-        
+    for i, config in enumerate(cluster_configs):
+        print(f"Training ensemble model {i+1}/{len(cluster_configs)}...")
+        model = KMeans(n_init=10, max_iter=500, **config)
         model.fit(df_normal_scaled)
-        
-        # Calculate clustering quality metrics
-        silhouette_avg = silhouette_score(df_normal_scaled, model.labels_)
-        calinski_score = calinski_harabasz_score(df_normal_scaled, model.labels_)
-        
         models.append(model)
-        model_scores.append({
-            'silhouette': silhouette_avg,
-            'calinski': calinski_score,
-            'clusters': config['n_clusters']
-        })
+    
+    return models, scaler, data_columns
+
+def find_optimal_threshold_simple(models, scaler, data_columns):
+    """Find optimal threshold using simple but effective method"""
+    print("Finding optimal threshold...")
+    
+    train_data_path = 'data/KDDTrain+.txt'
+    df_train = load_and_preprocess_data(train_data_path)
+    
+    true_labels = (df_train['label'] != 'normal').astype(int)
+    df_train_features = df_train.drop('label', axis=1)
+    df_train_features = df_train_features.reindex(columns=data_columns, fill_value=0)
+    df_train_scaled = scaler.transform(df_train_features)
+    
+    # Calculate ensemble distances
+    all_distances = []
+    for model in models:
+        distances = model.transform(df_train_scaled).min(axis=1)
+        all_distances.append(distances)
+    
+    # Use average distance across ensemble
+    avg_distances = np.mean(all_distances, axis=0)
+    
+    best_threshold = None
+    best_f1_score = 0
+    
+    # Test different threshold percentiles
+    percentiles = np.arange(85, 99.5, 1.0)  # Less granular for speed
+    
+    for percentile in percentiles:
+        threshold = np.percentile(avg_distances, percentile)
+        predicted_labels = (avg_distances > threshold).astype(int)
         
-        print(f"  Silhouette Score: {silhouette_avg:.3f}")
-        print(f"  Calinski-Harabasz Score: {calinski_score:.3f}")
+        # Calculate F1 score
+        from sklearn.metrics import f1_score
+        f1 = f1_score(true_labels, predicted_labels, zero_division=0)
+        
+        if f1 > best_f1_score:
+            best_f1_score = f1
+            best_threshold = threshold
     
-    # Print model quality summary
-    print("\n=== Model Quality Summary ===")
-    for i, score in enumerate(model_scores):
-        print(f"Model {i+1}: Clusters={score['clusters']}, "
-              f"Silhouette={score['silhouette']:.3f}, "
-              f"Calinski-Harabasz={score['calinski']:.3f}")
-    
-    return models, scaler, data_columns, model_scores
+    print(f"Best threshold: {best_threshold:.6f} with F1 score: {best_f1_score:.4f}")
+    return best_threshold
 
 def find_optimal_threshold_advanced(models, scaler, data_columns):
     """Advanced threshold optimization using multiple metrics"""
@@ -246,22 +248,20 @@ def create_optimized_model():
     
     return True
 
-def create_optimized_kmeans_model():
-    """Create and save the optimized K-means ensemble model."""
-    print("Creating optimized K-means ensemble model...")
+def create_optimized_ensemble_model():
+    """Create and save the optimized ensemble model."""
+    print("Creating optimized ensemble model...")
     
     train_data_path = 'data/KDDTrain+.txt'
     if not os.path.exists(train_data_path):
         print(f"ERROR: Training data not found at {train_data_path}")
         return False
 
-    # Create advanced ensemble
-    ensemble_models, scaler, data_columns, model_scores = create_advanced_kmeans_ensemble()
+    # Create simple ensemble
+    ensemble_models, scaler, data_columns = create_simple_ensemble()
     
     # Find optimal threshold
-    optimal_threshold, threshold_metrics = find_optimal_threshold_advanced(
-        ensemble_models, scaler, data_columns
-    )
+    optimal_threshold = find_optimal_threshold_simple(ensemble_models, scaler, data_columns)
     
     # Save all components
     joblib.dump(ensemble_models, MODEL_PATH)
@@ -269,31 +269,21 @@ def create_optimized_kmeans_model():
     joblib.dump(data_columns, COLUMNS_PATH)
     joblib.dump(optimal_threshold, THRESHOLD_PATH)
     
-    # Save model scores for weighted prediction
-    MODEL_SCORES_PATH = os.path.join(MODELS_FOLDER, 'model_scores.joblib')
-    joblib.dump(model_scores, MODEL_SCORES_PATH)
-    
-    # Save threshold metrics for analysis
-    THRESHOLD_METRICS_PATH = os.path.join(MODELS_FOLDER, 'threshold_metrics.joblib')
-    joblib.dump(threshold_metrics, THRESHOLD_METRICS_PATH)
-    
-    print(f"Enhanced K-means ensemble saved:")
+    print(f"Optimized ensemble model saved:")
     print(f"- Models: {MODEL_PATH}")
     print(f"- Scaler: {SCALER_PATH}")
     print(f"- Columns: {COLUMNS_PATH}")
     print(f"- Threshold: {THRESHOLD_PATH}")
-    print(f"- Model Scores: {MODEL_SCORES_PATH}")
-    print(f"- Threshold Metrics: {THRESHOLD_METRICS_PATH}")
     
     return True
 
 if __name__ == '__main__':
-    print("=== ENHANCED K-MEANS ENSEMBLE TRAINING ===")
-    print("This will create an advanced K-means ensemble with optimized features.")
+    print("=== OPTIMIZED K-MEANS ENSEMBLE TRAINING ===")
+    print("This will create a fast and accurate K-means ensemble.")
     print()
     
-    if create_optimized_kmeans_model():
-        print("\n✅ SUCCESS: Enhanced K-means ensemble created!")
+    if create_optimized_ensemble_model():
+        print("\n✅ SUCCESS: Optimized ensemble model created!")
         print("You can now run your main app.py to use the improved model.")
     else:
-        print("\n❌ FAILED: Could not create enhanced K-means ensemble.")
+        print("\n❌ FAILED: Could not create optimized ensemble model.")

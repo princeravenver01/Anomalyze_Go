@@ -77,59 +77,68 @@ def load_and_preprocess_data(file_path):
 
 def create_advanced_network_features(df):
     """Create advance network-specific features optimized for K-means clustering"""
-    df_enhanced =df.copy()
+    df_enhanced = df.copy()
 
-    # Traffic intensity ratios
-    df_enhanced['bytes_ratio'] = df_enhanced['src_bytes'] / (df_enhanced['dst_bytes'] + 1)
-    df_enhanced['total_bytes'] = df_enhanced['src_bytes'] + df_enhanced['dst_bytes']
+    # Traffic intensity ratios (check if columns exist first)
+    if 'src_bytes' in df_enhanced.columns and 'dst_bytes' in df_enhanced.columns:
+        df_enhanced['bytes_ratio'] = df_enhanced['src_bytes'] / (df_enhanced['dst_bytes'] + 1)
+        df_enhanced['total_bytes'] = df_enhanced['src_bytes'] + df_enhanced['dst_bytes']
 
     # Connection pattern features
-    df_enhanced['srv_rate'] = df_enhanced['srv_count'] / (df_enhanced['count'] + 1)
-    df_enhanced['error_density'] = (df_enhanced['serror_rate'] + df_enhanced['srv_error_rate']) / 2
+    if 'srv_count' in df_enhanced.columns and 'count' in df_enhanced.columns:
+        df_enhanced['srv_rate'] = df_enhanced['srv_count'] / (df_enhanced['count'] + 1)
+    
+    if 'serror_rate' in df_enhanced.columns and 'srv_serror_rate' in df_enhanced.columns:
+        df_enhanced['error_density'] = (df_enhanced['serror_rate'] + df_enhanced['srv_serror_rate']) / 2
 
     # Protocol behavior patterns
-    if 'duration' in df_enhanced.columns:
+    if 'duration' in df_enhanced.columns and 'total_bytes' in df_enhanced.columns:
         df_enhanced['bytes_per_second'] = df_enhanced['total_bytes'] / (df_enhanced['duration'] + 0.001)
         df_enhanced['duration_category'] = pd.cut(df_enhanced['duration'],
                                                   bins = [0, 1,10, 100, float('inf')],
                                                   labels = [0, 1, 2, 3])
         
-    # Host behavior clustering features
-    df_enhanced['host_diversity'] = (df_enhanced['dst_host_diff_srv_rate'] *
-                                     df_enhanced['dst_host_srv_count'])
+    # Host behavior clustering features (check if columns exist)
+    if 'dst_host_diff_srv_rate' in df_enhanced.columns and 'dst_host_srv_count' in df_enhanced.columns:
+        df_enhanced['host_diversity'] = (df_enhanced['dst_host_diff_srv_rate'] *
+                                       df_enhanced['dst_host_srv_count'])
     
-    # Attack pattern indicator
-    df_enhanced['sus_flag_ratio'] = (df_enhanced['su_attempted'] + df_enhanced['root_shell']) / 2
-    df_enhanced['land_flag'] = df_enhanced['land']
+    # Attack pattern indicator (check if columns exist)
+    if 'su_attempted' in df_enhanced.columns and 'root_shell' in df_enhanced.columns:
+        df_enhanced['sus_flag_ratio'] = (df_enhanced['su_attempted'] + df_enhanced['root_shell']) / 2
+    
+    if 'land' in df_enhanced.columns:
+        df_enhanced['land_flag'] = df_enhanced['land']
 
     # Network flow characteristics
-    df_enhanced['same_srv_rate_high'] = (df_enhanced['same_srv_rate'] > 0.8).astype(int)
-    df_enhanced['diff_srv_rate_high'] = (df_enhanced['diff_srv_rate'] > 0.8).astype(int)
+    if 'same_srv_rate' in df_enhanced.columns:
+        df_enhanced['same_srv_rate_high'] = (df_enhanced['same_srv_rate'] > 0.8).astype(int)
+    if 'diff_srv_rate' in df_enhanced.columns:
+        df_enhanced['diff_srv_rate_high'] = (df_enhanced['diff_srv_rate'] > 0.8).astype(int)
 
     return df_enhanced
 
 def enhanced_preprocessing_for_kmeans(df):
     """Enhanced preprocessing specifically optimized for K-means clustering"""
+    
+    try:
+        # Apply feature engineering only if we have the required columns
+        df = create_advanced_network_features(df)
 
-    # Apply feature engineering
-    df = create_advanced_network_features(df)
+        # Handle categorical variables better for clustering
+        categorical_columns = df.select_dtypes(include=['object']).columns
+        for col in categorical_columns:
+            if col != 'label':
+                # Use frequency encoding for high cardinality categoricals
+                freq_encoding = df[col].value_counts().to_dict()
+                df[f'{col}_freq'] = df[col].map(freq_encoding)
+                df = df.drop(col, axis=1)
 
-    # Handle categorical variables better for clustering
-    categorical_columns = df.select_dtypes(include = ['object']).columns
-    for col in categorical_columns:
-        if col != 'label':
-            # Use frequency encoding for high cardinality categoricals
-            freq_encoding = df[col].value_counts().to_dict()
-            df[f'{col}_freq'] = df[col].map(freq_encoding)
-            df = df.drop(col, axis = 1)
-
-    # Robust scaling for K-means
-    numeric_columns = df.select_dtypes(inlcude = [np.number]).columns
-    if 'label' in numeric_columns:
-        numeric_columns = numeric_columns.drop('label')
-
-    # Use RobustScaler instead of StandardScaler for better clustering
-    scaler = RobustScaler()
-    df[numeric_columns] = scaler.fit_transform(df[numeric_columns])
-
-    return df
+        # Note: Don't apply scaling here as it will be done later with the saved scaler
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error in enhanced preprocessing: {e}")
+        # Return original dataframe if enhancement fails
+        return df

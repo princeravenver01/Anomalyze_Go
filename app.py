@@ -4,6 +4,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import os
+import time
 from utils.preprocessing import load_and_preprocess_data
 import joblib
 import io
@@ -125,7 +126,7 @@ def calculate_anomaly_severity(distances, threshold):
 
 def load_model():
     """Loads the ensemble models and finds the optimal threshold."""
-    global ensemble_models, scaler, data_columns, optimal_threshold
+    global ensemble_models, scaler, data_columns, optimal_threshold, model_scores
     
     try:
         # Check if ensemble model file exists
@@ -135,6 +136,16 @@ def load_model():
             scaler = joblib.load(SCALER_PATH)
             data_columns = joblib.load(COLUMNS_PATH)
             optimal_threshold = joblib.load(THRESHOLD_PATH)
+            
+            # Try to load model scores if they exist
+            MODEL_SCORES_PATH = os.path.join(MODELS_FOLDER, 'model_scores.joblib')
+            if os.path.exists(MODEL_SCORES_PATH):
+                model_scores = joblib.load(MODEL_SCORES_PATH)
+                print("Model scores loaded successfully.")
+            else:
+                print("Model scores not found, will use equal weighting.")
+                model_scores = None
+                
             print("Ensemble models loaded successfully.")
         else:
             print("Creating new ensemble models...")
@@ -216,16 +227,20 @@ def upload_file():
                 true_labels_binary = (true_labels != 'normal').astype(int)
                 df_test = df_test.drop('label', axis=1)
 
-            # Apply enhanced preprocessing
-            from utils.preprocessing import enhanced_preprocessing_for_kmeans
-            df_test = enhanced_preprocessing_for_kmeans(df_test)
+            # Simple preprocessing - just ensure columns match and scale
             df_test = df_test.reindex(columns=data_columns, fill_value=0)
             df_test_scaled = scaler.transform(df_test)
 
-            # Use enhanced ensemble prediction
-            anomalies_mask, confidence_scores, distances = enhanced_ensemble_predict(
-                ensemble_models, model_scores, df_test_scaled, optimal_threshold
-            )
+            # Use ensemble prediction (simple and fast)
+            anomalies_mask = ensemble_predict(ensemble_models, df_test_scaled, optimal_threshold)
+            
+            # Calculate simple confidence scores and distances
+            distances_list = []
+            for model in ensemble_models:
+                distances = model.transform(df_test_scaled).min(axis=1)
+                distances_list.append(distances)
+            distances = np.mean(distances_list, axis=0)
+            confidence_scores = 1 / (1 + distances)
             
             # Calculate severity levels
             severity_levels = calculate_anomaly_severity(distances, optimal_threshold)
