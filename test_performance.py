@@ -1,9 +1,14 @@
 """
-Performance test script for Anomalyze
-Tests the speed and accuracy of the model
+Anomalyze Performance Test Script
+Tests the speed and accuracy of the optimized model
+
 """
 
+from __future__ import annotations
+import sys
 import time
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 from utils.preprocessing import load_and_preprocess_data
