@@ -1,6 +1,12 @@
 """
-Threshold optimization script for better accuracy
+Anomalyze Threshold Optimization Script
+Optimizes detection threshold for maximum accuracy
+
 """
+
+from __future__ import annotations  # Python 3.14 forward compatibility
+import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
