@@ -1,15 +1,20 @@
-# LOCAL TRAINING SCRIPT FOR IMPROVEMENT
+"""
+Anomalyze Model Training Script
+Optimized for high performance and accuracy
 
-from flask import Flask
+"""
+
+from __future__ import annotations
+import sys
+from pathlib import Path  # Modern path handling
 import pandas as pd
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, calinski_harabasz_score
+from sklearn.metrics import silhouette_score, calinski_harabasz_score, accuracy_score
 import numpy as np
 import os
 from utils.preprocessing import load_and_preprocess_data
 import joblib
-from sklearn.metrics import accuracy_score, silhouette_score, calinski_harabasz_score
 
 # Configure folders
 MODELS_FOLDER = 'models'
