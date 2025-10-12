@@ -1,8 +1,18 @@
+"""
+Anomalyze Preprocessing Module
+Optimized data preprocessing for network intrusion detection
+
+"""
+
+from __future__ import annotations
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler
 import numpy as np
+import sys
+from pathlib import Path
+from typing import Union, Optional
 
-def load_and_preprocess_data(file_path):
+def load_and_preprocess_data(file_path: Union[str, Path]) -> pd.DataFrame:
     """
     Loads the NSL-KDD dataset, assigns column names, and handles categorical features.
     """
