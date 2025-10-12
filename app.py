@@ -1,3 +1,9 @@
+"""
+Anomalyze - Network Intrusion Detection System
+
+"""
+
+from __future__ import annotations
 from flask import Flask, render_template, request
 import pandas as pd
 from sklearn.cluster import KMeans
@@ -5,6 +11,8 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 import os
 import time
+import sys
+from pathlib import Path
 from utils.preprocessing import load_and_preprocess_data
 import joblib
 import io
