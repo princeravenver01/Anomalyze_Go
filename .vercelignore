@@ -1,0 +1,46 @@
+# Vercel Ignore - Exclude API and data files
+
+api_server.py
+requirements-render.txt
+render.yaml
+.renderignore
+
+# Models and data folders (not needed on Vercel)
+
+models/
+data/
+
+# Training scripts
+
+train_model.py
+test_performance.py
+optimize_threshold.py
+
+# Uploads folder
+
+uploads/
+
+# Git files
+
+.git/
+.gitignore
+
+# Python cache
+
+**pycache**/
+_.pyc
+_.pyo
+\*.pyd
+.Python
+
+# IDE
+
+.vscode/
+.idea/
+_.swp
+_.swo
+
+# OS
+
+.DS_Store
+Thumbs.db
