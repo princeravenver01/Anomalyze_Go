@@ -1,0 +1,40 @@
+# Render Ignore - Exclude frontend-specific files
+
+app_vercel.py
+requirements-vercel.txt
+vercel.json
+.vercelignore
+
+# Uploads folder
+
+uploads/
+
+# Test files
+
+test_performance.py
+optimize_threshold.py
+
+# Git files
+
+.git/
+.gitignore
+
+# Python cache
+
+**pycache**/
+_.pyc
+_.pyo
+\*.pyd
+.Python
+
+# IDE
+
+.vscode/
+.idea/
+_.swp
+_.swo
+
+# OS
+
+.DS_Store
+Thumbs.db
