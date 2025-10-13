@@ -150,13 +150,18 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'Empty filename'}), 400
         
+        print("Step 1: Reading file...")
         # Read and preprocess data
         stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
         stream.seek(0)
         df_test_original = pd.read_csv(stream, header=None)
+        print(f"Step 2: Original data shape: {df_test_original.shape}")
         
         stream.seek(0)
+        print("Step 3: Starting preprocessing...")
         df_test = load_and_preprocess_data(stream)
+        print(f"Step 4: Preprocessed data shape: {df_test.shape}")
+        print(f"Step 5: Data types: {df_test.dtypes.to_dict()}")
         
         has_labels = 'label' in df_test.columns
         metrics = {}
@@ -167,13 +172,19 @@ def predict():
             df_test = df_test.drop('label', axis=1)
         
         # Ensure columns match and scale
+        print(f"Step 6: Reindexing to match training columns...")
         df_test = df_test.reindex(columns=data_columns, fill_value=0)
+        print(f"Step 7: After reindex shape: {df_test.shape}")
         
         # Ensure all columns are numeric before scaling
+        print("Step 8: Converting to numeric types...")
         for col in df_test.columns:
             df_test[col] = pd.to_numeric(df_test[col], errors='coerce').fillna(0).astype(float)
+        print(f"Step 9: After numeric conversion types: {df_test.dtypes.unique()}")
         
+        print("Step 10: Scaling data...")
         df_test_scaled = scaler.transform(df_test)
+        print(f"Step 11: Scaled data shape: {df_test_scaled.shape}")
         
         # Use ensemble prediction
         anomalies_mask = ensemble_predict(ensemble_models, df_test_scaled, optimal_threshold)
