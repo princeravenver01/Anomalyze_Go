@@ -92,6 +92,11 @@ def load_and_preprocess_data(file_path: Union[str, Path]) -> pd.DataFrame:
 def create_advanced_network_features(df: pd.DataFrame) -> pd.DataFrame:
     """Create advance network-specific features optimized for K-means clustering"""
     df_enhanced = df.copy()
+    
+    # Ensure all numeric columns are actually numeric before operations
+    for col in df_enhanced.columns:
+        if col != 'label':
+            df_enhanced[col] = pd.to_numeric(df_enhanced[col], errors='coerce').fillna(0).astype(float)
 
     # Traffic intensity ratios (check if columns exist first)
     if 'src_bytes' in df_enhanced.columns and 'dst_bytes' in df_enhanced.columns:
