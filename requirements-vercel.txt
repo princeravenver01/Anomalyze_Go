@@ -1,0 +1,13 @@
+# Anomalyze Vercel Frontend Requirements
+# Python 3.12 Compatible
+
+# Web Framework
+Flask==3.0.3
+Werkzeug==3.0.3
+
+# HTTP Requests
+requests==2.32.3
+
+# Additional utilities
+setuptools>=70.0.0
+wheel>=0.43.0
