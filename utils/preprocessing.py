@@ -1,7 +1,7 @@
 """
 Anomalyze Preprocessing Module
 Optimized data preprocessing for network intrusion detection
-
+Python 3.12 Compatible
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler
 import numpy as np
 import sys
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union
 
 def load_and_preprocess_data(file_path: Union[str, Path]) -> pd.DataFrame:
     """
@@ -85,7 +85,7 @@ def load_and_preprocess_data(file_path: Union[str, Path]) -> pd.DataFrame:
         print(f"Error in processing: {e}")
         raise
 
-def create_advanced_network_features(df):
+def create_advanced_network_features(df: pd.DataFrame) -> pd.DataFrame:
     """Create advance network-specific features optimized for K-means clustering"""
     df_enhanced = df.copy()
 
@@ -128,7 +128,7 @@ def create_advanced_network_features(df):
 
     return df_enhanced
 
-def enhanced_preprocessing_for_kmeans(df):
+def enhanced_preprocessing_for_kmeans(df: pd.DataFrame) -> pd.DataFrame:
     """Enhanced preprocessing specifically optimized for K-means clustering"""
     
     try:
