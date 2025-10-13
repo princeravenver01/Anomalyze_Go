@@ -16,6 +16,6 @@
     }
   ],
   "env": {
-    "ANOMALYZE_API_URL": "@anomalyze_api_url"
+    "ANOMALYZE_API_URL": "https://anomalyze-f7u0.onrender.com"
   }
 }

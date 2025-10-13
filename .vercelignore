@@ -25,13 +25,17 @@ uploads/
 .git/
 .gitignore
 
-# Python cache
+# Python cache and virtual environments
 
 **pycache**/
 _.pyc
 _.pyo
 \*.pyd
 .Python
+.venv/
+venv/
+env/
+ENV/
 
 # IDE
 
