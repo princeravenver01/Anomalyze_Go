@@ -1,51 +1,58 @@
-# Vercel Ignore - Exclude API and data files
+# Vercel Ignore - Exclude everything not needed for frontend
 
-api_server.py
-requirements-render.txt
-requirements-full.txt
-render.yaml
-.renderignore
-
-# Models and data folders (not needed on Vercel)
-
+# Large data files and directories
 models/
 data/
+uploads/
+# Exclude specific large .txt files, but allow requirements
+data/*.txt
+uploads/*.txt
+KDDTrain+.txt
+KDDTest.txt
 
-# Training scripts
-
+# Backend API files (not needed on Vercel)
+api_server.py
+app.py
 train_model.py
 test_performance.py
 optimize_threshold.py
-
-# Uploads folder
-
-uploads/
-
-# Git files
-
-.git/
-.gitignore
+requirements.txt
+requirements-render.txt
+render.yaml
+.renderignore
 
 # Python cache and virtual environments
-
-**pycache**/
-_.pyc
-_.pyo
-\*.pyd
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
 .Python
 .venv/
 venv/
 env/
 ENV/
+*.egg-info/
+
+# Git files
+.git/
+.gitignore
 
 # IDE
-
 .vscode/
 .idea/
-_.swp
-_.swo
+*.swp
+*.swo
 
 # OS
-
 .DS_Store
+
+# Documentation
+ARCHITECTURE.md
+COMPLETE.md
+DEPLOYMENT_SUMMARY.md
+DEPLOYMENT.md
+PRE_DEPLOYMENT_CHECKLIST.md
+QUICKSTART.md
+README_DEPLOYMENT.md
 Thumbs.db
