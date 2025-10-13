@@ -56,7 +56,13 @@ def calculate_anomaly_severity(distances: np.ndarray, threshold: float) -> list[
     """Calculate severity levels for detected anomalies."""
     severity_levels = []
     
+    # Ensure threshold is float
+    threshold = float(threshold)
+    
     for distance in distances:
+        # Ensure distance is float
+        distance = float(distance)
+        
         if distance <= threshold:
             severity_levels.append('Normal')
         elif distance <= threshold * 1.5:
@@ -162,6 +168,11 @@ def predict():
         
         # Ensure columns match and scale
         df_test = df_test.reindex(columns=data_columns, fill_value=0)
+        
+        # Ensure all columns are numeric before scaling
+        for col in df_test.columns:
+            df_test[col] = pd.to_numeric(df_test[col], errors='coerce').fillna(0).astype(float)
+        
         df_test_scaled = scaler.transform(df_test)
         
         # Use ensemble prediction
