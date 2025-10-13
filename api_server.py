@@ -213,24 +213,35 @@ def predict():
         severity_levels = calculate_anomaly_severity(distances, optimal_threshold)
         print(f"Step 18: Severity levels calculated: {len(severity_levels)} items")
         
+        print("Step 19: Finding anomaly indices...")
         # Build results
         anomalies_indices = np.where(anomalies_mask)[0]
+        print(f"Step 20: Found {len(anomalies_indices)} anomalies")
         anomalies_data = []
         
-        for idx in anomalies_indices:
+        print("Step 21: Building anomaly records...")
+        for i, idx in enumerate(anomalies_indices):
+            if i < 5:  # Log first 5 for debugging
+                print(f"Step 21.{i}: Processing anomaly at index {idx}")
             anomaly_record = df_test_original.iloc[idx].to_dict()
+            if i < 2:  # Show first 2 record types
+                print(f"  Record types: {[(k, type(v).__name__) for k, v in list(anomaly_record.items())[:5]]}")
             anomaly_record['confidence'] = float(confidence_scores[idx])
             anomaly_record['severity'] = severity_levels[idx]
             anomaly_record['distance'] = float(distances[idx])
             anomaly_record['index'] = int(idx)
             anomalies_data.append(anomaly_record)
+        print(f"Step 22: Built {len(anomalies_data)} anomaly records")
         
+        print("Step 23: Calculating metrics...")
         # Calculate metrics if labels are available
         if has_labels:
+            print("Step 24: Has labels, calculating accuracy metrics...")
             accuracy = accuracy_score(true_labels_binary, anomalies_mask)
             precision = precision_score(true_labels_binary, anomalies_mask, zero_division=0)
             recall = recall_score(true_labels_binary, anomalies_mask, zero_division=0)
             f1 = f1_score(true_labels_binary, anomalies_mask, zero_division=0)
+            print("Step 25: Metrics calculated successfully")
             
             metrics = {
                 'accuracy': float(accuracy * 100),
