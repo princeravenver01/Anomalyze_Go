@@ -2,11 +2,55 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
 
-# Local environment
+# Virtual environments
 .env
 .venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.vs/
 
 # OS files
 .DS_Store
 Thumbs.db
+*.log
+
+# Uploads folder (temporary files)
+uploads/*.txt
+uploads/*.csv
+!uploads/.gitkeep
+
+# Test outputs
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Note: Keep models/ and data/ in repo for deployment
+# They are needed by Render
