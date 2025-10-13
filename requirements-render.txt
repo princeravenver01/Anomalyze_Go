@@ -1,0 +1,24 @@
+# Anomalyze Render API Requirements
+# Python 3.12 Compatible
+
+# Web Framework
+Flask==3.0.3
+flask-cors==4.0.1
+Werkzeug==3.0.3
+
+# Data Processing & Analysis
+pandas==2.2.2
+numpy==1.26.4
+
+# Machine Learning
+scikit-learn==1.5.1
+
+# Model Serialization
+joblib==1.4.2
+
+# Web Server for Render
+gunicorn==22.0.0
+
+# Additional utilities
+setuptools>=70.0.0
+wheel>=0.43.0
