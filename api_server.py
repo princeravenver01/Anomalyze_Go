@@ -223,9 +223,24 @@ def predict():
         for i, idx in enumerate(anomalies_indices):
             if i < 5:  # Log first 5 for debugging
                 print(f"Step 21.{i}: Processing anomaly at index {idx}")
-            anomaly_record = df_test_original.iloc[idx].to_dict()
+            
+            # Get the record and convert all values to JSON-serializable types
+            anomaly_record = {}
+            row_data = df_test_original.iloc[idx]
+            for col_idx, value in enumerate(row_data):
+                # Convert all values to appropriate JSON types
+                if pd.isna(value):
+                    anomaly_record[str(col_idx)] = None
+                elif isinstance(value, (np.integer, int)):
+                    anomaly_record[str(col_idx)] = int(value)
+                elif isinstance(value, (np.floating, float)):
+                    anomaly_record[str(col_idx)] = float(value)
+                else:
+                    anomaly_record[str(col_idx)] = str(value)
+            
             if i < 2:  # Show first 2 record types
                 print(f"  Record types: {[(k, type(v).__name__) for k, v in list(anomaly_record.items())[:5]]}")
+            
             anomaly_record['confidence'] = float(confidence_scores[idx])
             anomaly_record['severity'] = severity_levels[idx]
             anomaly_record['distance'] = float(distances[idx])
