@@ -2,6 +2,7 @@
 
 api_server.py
 requirements-render.txt
+requirements-full.txt
 render.yaml
 .renderignore
 

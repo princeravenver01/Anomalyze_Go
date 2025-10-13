@@ -10,7 +10,15 @@ import requests
 import os
 from pathlib import Path
 
-app = Flask(__name__)
+# Get the directory where this file is located
+BASE_DIR = Path(__file__).parent.absolute()
+
+# Initialize Flask with explicit paths
+app = Flask(
+    __name__,
+    template_folder=str(BASE_DIR / 'templates'),
+    static_folder=str(BASE_DIR / 'static')
+)
 
 # API endpoint for Render service
 API_URL = os.environ.get('ANOMALYZE_API_URL', 'http://localhost:10000')
@@ -38,12 +46,30 @@ def upload_file():
         response = requests.post(f'{API_URL}/api/predict', files=files, timeout=300)
         
         if response.status_code != 200:
-            return jsonify({'error': 'API request failed', 'details': response.text}), 500
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('error', response.text)
+                details = error_data.get('details', '')
+            except:
+                error_msg = response.text
+                details = ''
+            
+            return render_template('index.html', 
+                                 error=f"API Error: {error_msg}",
+                                 error_details=details,
+                                 results=None, 
+                                 accuracy=None)
         
         result = response.json()
         
         if not result.get('success'):
-            return jsonify({'error': result.get('error', 'Unknown error')}), 500
+            error_msg = result.get('error', 'Unknown error')
+            details = result.get('details', '')
+            return render_template('index.html', 
+                                 error=f"Analysis Error: {error_msg}",
+                                 error_details=details,
+                                 results=None, 
+                                 accuracy=None)
         
         # Render results
         anomalies = result.get('anomalies', [])

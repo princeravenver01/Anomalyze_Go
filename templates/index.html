@@ -1,354 +1,582 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anomalyze - Network Anomaly Detection</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap-grid.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap-grid.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="background-shapes"></div>
 
     <nav class="navbar">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <svg width="180" height="30" viewBox="0 0 180 30" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color: #4cfaef;" />
-                            <stop offset="100%" style="stop-color: #2af598;" />
-                        </linearGradient>
-                    </defs>
-                    <path d="M15 3 L3 27 L9 27 L15 17 L21 27 L27 27 L15 3 Z M15 20 L12 25 L18 25 L15 20 Z" fill="url(#logoGradient)"/>
-                    <text x="35" y="22" font-family="Inter, sans-serif" font-size="24" font-weight="800" fill="url(#logoGradient)">Anomalyze</text>
-                </svg>
-            </a>
-            <div class="nav-links">
-                <a href="/">New Analysis</a>
-                <a href="#">Analysis History</a>
-            </div>
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          <svg
+            width="180"
+            height="30"
+            viewBox="0 0 180 30"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient
+                id="logoGradient"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="0%"
+              >
+                <stop offset="0%" style="stop-color: #4cfaef" />
+                <stop offset="100%" style="stop-color: #2af598" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M15 3 L3 27 L9 27 L15 17 L21 27 L27 27 L15 3 Z M15 20 L12 25 L18 25 L15 20 Z"
+              fill="url(#logoGradient)"
+            />
+            <text
+              x="35"
+              y="22"
+              font-family="Inter, sans-serif"
+              font-size="24"
+              font-weight="800"
+              fill="url(#logoGradient)"
+            >
+              Anomalyze
+            </text>
+          </svg>
+        </a>
+        <div class="nav-links">
+          <a href="/">New Analysis</a>
+          <a href="#">Analysis History</a>
         </div>
+      </div>
     </nav>
 
     <main class="container content-wrapper">
-        <div class="detection-container">
-            <h1 class="main-title">Network Anomaly Detection Engine</h1>
-            <p class="lead-text mb-5">
-                Upload your data file to analyze network connections and uncover potential threats.
-            </p>
-            <form action="/upload" method="post" enctype="multipart/form-data" class="detection-form mx-auto">
-                 <div class="form-inner-wrapper">
-                    <label for="file-upload" class="file-upload-label">Network Data File</label>
-                    <input type="file" class="address-input" id="file-upload" name="file" accept=".txt,.csv" required>
-                    <button class="btn-check" type="submit">Analyze Data</button>
-                </div>
-            </form>
-        </div>
+      <div class="detection-container">
+        <h1 class="main-title">Network Anomaly Detection Engine</h1>
+        <p class="lead-text mb-5">
+          Upload your data file to analyze network connections and uncover
+          potential threats.
+        </p>
+        <form
+          action="/upload"
+          method="post"
+          enctype="multipart/form-data"
+          class="detection-form mx-auto"
+        >
+          <div class="form-inner-wrapper">
+            <label for="file-upload" class="file-upload-label"
+              >Network Data File</label
+            >
+            <input
+              type="file"
+              class="address-input"
+              id="file-upload"
+              name="file"
+              accept=".txt,.csv"
+              required
+            />
+            <button class="btn-check" type="submit">Analyze Data</button>
+          </div>
+        </form>
+      </div>
 
-        {% if accuracy is not none %}
-        <div class="results-section mt-5">
-            <div class="results-summary">
-                 {% set accuracy_color = 'green' if accuracy >= 85 else ('yellow' if accuracy >= 70 else 'red') %}
-                 <div class="summary-card {{ accuracy_color }}">
-                    <div class="card-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <div class="card-content">
-                        <span class="card-title">Model Accuracy</span>
-                        <span class="card-value" data-target="{{ accuracy }}">0.00%</span>
-                    </div>
-                 </div>
-
-                 {% set anomalies_count = results|length %}
-                 {% set anomalies_color = 'green' if anomalies_count <= 100 else ('yellow' if anomalies_count <= 1000 else 'red') %}
-                 <div class="summary-card {{ anomalies_color }}">
-                    <div class="card-icon">
-                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
-                    </div>
-                    <div class="card-content">
-                        <span class="card-title">Anomalies Found</span>
-                        <span class="card-value" data-target="{{ anomalies_count }}">0</span>
-                    </div>
-                 </div>
-            </div>
-
-            {% if results is not none and not results.empty %}
-            <div class="data-visualization-grid mt-4">
-                <div class="data-card">
-                    <h2 class="card-header-title">Protocol Distribution</h2>
-                    <div class="chart-container">
-                        <canvas id="protocolChart"></canvas>
-                    </div>
-                </div>
-                <div class="data-card">
-                    <h2 class="card-header-title">Anomaly Visualization by Source Bytes</h2>
-                    {% if results|length > 25 %}<p class="card-header-subtitle">Showing the first 25 anomalies for clarity.</p>{% endif %}
-                    <div class="chart-container">
-                        <canvas id="anomalyChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="data-card info-card mt-4">
-                <div class="row g-5">
-                    <div class="col-lg-6">
-                        <h3 class="info-title">Risk Factors</h3>
-                        <div class="info-item">
-                            <div class="icon-container red">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.16669 12.5H10.8334V14.1667H9.16669V12.5ZM9.16669 5.83333H10.8334V10.8333H9.16669V5.83333ZM10.0001 1.66666C5.40008 1.66666 1.66675 5.4 1.66675 10C1.66675 14.6 5.40008 18.3333 10.0001 18.3333C14.6001 18.3333 18.3334 14.6 18.3334 10C18.3334 5.4 14.6001 1.66666 10.0001 1.66666Z" fill="#F47174"/></svg>
-                            </div>
-                            <p>High error rates or unusual service flags suggest potential exploits or DoS attacks.</p>
-                        </div>
-                        <div class="info-item">
-                            <div class="icon-container red">
-                               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.16669 12.5H10.8334V14.1667H9.16669V12.5ZM9.16669 5.83333H10.8334V10.8333H9.16669V5.83333ZM10.0001 1.66666C5.40008 1.66666 1.66675 5.4 1.66675 10C1.66675 14.6 5.40008 18.3333 10.0001 18.3333C14.6001 18.3333 18.3334 14.6 18.3334 10C18.3334 5.4 14.6001 1.66666 10.0001 1.66666Z" fill="#F47174"/></svg>
-                            </div>
-                            <p>Large data transfers (Src/Dst Bytes) on unexpected ports can indicate data exfiltration.</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-6">
-                        <h3 class="info-title">Recommendation</h3>
-                        <div class="info-item">
-                            <div class="icon-container green">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 1.66666C5.4 1.66666 1.66667 5.4 1.66667 10C1.66667 14.6 5.4 18.3333 10 18.3333C14.6 18.3333 18.3333 14.6 18.3333 10C18.3333 5.4 14.6 1.66666 10 1.66666ZM8.33333 14.1667L4.16667 10L5.34167 8.825L8.33333 11.8083L14.6583 5.48332L15.8333 6.66666L8.33333 14.1667Z" fill="#2ED47A"/></svg>
-                            </div>
-                            <p>Review all highlighted rows in the table below. Cross-reference connection times and services with expected network behavior.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="data-card mt-4">
-                <h2 class="card-header-title">Detection Details</h2>
-                <div class="table-responsive">
-                    <table class="results-table" id="resultsTable">
-                        <thead>
-                            <tr>
-                                <th>Duration</th><th>Protocol</th><th>Service</th><th>Flag</th><th>Src Bytes</th><th>Dst Bytes</th><th>Count</th><th>Error Rate</th><th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for _, row in results.iterrows() %}
-                            <tr class="{{ 'table-highlight' if row[24] > 0.5 else '' }}">
-                                <td>{{ "%.2f"|format(row[0]) }}</td><td>{{ row[1] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td><td>{{ row[4] }}</td><td>{{ row[5] }}</td><td>{{ row[22] }}</td><td>{{ "%.3f"|format(row[24]) }}</td><td><button class="btn-details" onclick="showDetails({{ loop.index0 }})">Details</button></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pagination-controls mt-3" id="pagination-controls">
-                    <button id="prev-page" class="pagination-arrow" disabled>&lt; Prev</button>
-                    <span id="page-info">Page 1 of 1</span>
-                    <button id="next-page" class="pagination-arrow" disabled>Next &gt;</button>
-                </div>
-            </div>
-
-            {% for _, row in results.iterrows() %}
-            <div id="details-{{ loop.index0 }}" class="details-panel" style="display: none;">
-                <div class="details-content">
-                    <div class="details-header">
-                        <h3 class="details-title">Connection Details #{{ loop.index }}</h3>
-                        <button class="btn-close" onclick="hideDetails({{ loop.index0 }})"></button>
-                    </div>
-                    <div class="details-grid">
-                        <div class="detail-item"><strong>Duration:</strong> {{ "%.2f"|format(row[0]) }}s</div>
-                        <div class="detail-item"><strong>Protocol:</strong> {{ row[1] }}</div>
-                        <div class="detail-item"><strong>Service:</strong> {{ row[2] }}</div>
-                        <div class="detail-item"><strong>Flag:</strong> {{ row[3] }}</div>
-                        <div class="detail-item"><strong>Source Bytes:</strong> {{ row[4] }}</div>
-                        <div class="detail-item"><strong>Dest Bytes:</strong> {{ row[5] }}</div>
-                        <div class="detail-item"><strong>Failed Logins:</strong> {{ row[10] }}</div>
-                        <div class="detail-item"><strong>Root Shell:</strong> {{ row[13] }}</div>
-                        <div class="detail-item"><strong>Connection Count:</strong> {{ row[22] }}</div>
-                        <div class="detail-item"><strong>Service Count:</strong> {{ row[23] }}</div>
-                        <div class="detail-item"><strong>Error Rate:</strong> {{ "%.3f"|format(row[24]) }}</div>
-                        <div class="detail-item"><strong>Same Srv Rate:</strong> {{ "%.3f"|format(row[28]) }}</div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-
-            {% endif %}
-        </div>
+      {% if error %}
+      <div
+        class="alert alert-danger mt-5"
+        role="alert"
+        style="
+          background: linear-gradient(
+            135deg,
+            rgba(255, 68, 68, 0.15),
+            rgba(255, 100, 100, 0.1)
+          );
+          border: 2px solid rgba(255, 68, 68, 0.3);
+          border-radius: 16px;
+          padding: 24px;
+          backdrop-filter: blur(10px);
+        "
+      >
+        <h4 style="color: #ff4444; margin-bottom: 12px; font-weight: 600">
+          ⚠️ Error
+        </h4>
+        <p style="color: #fff; margin-bottom: 8px; font-size: 16px">
+          {{ error }}
+        </p>
+        {% if error_details %}
+        <details style="margin-top: 16px">
+          <summary style="color: #4cfaef; cursor: pointer; font-weight: 500">
+            View Details
+          </summary>
+          <pre
+            style="
+              background: rgba(0, 0, 0, 0.3);
+              padding: 12px;
+              border-radius: 8px;
+              margin-top: 8px;
+              color: #ccc;
+              overflow-x: auto;
+              font-size: 13px;
+            "
+          >
+{{ error_details }}</pre
+          >
+        </details>
         {% endif %}
-
-     
-        <div id="privacyModal" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Privacy & Data Usage Policy</h2>
-                    <button id="closeModalBtn" class="btn-close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>By proceeding, you acknowledge that the data file you upload will be processed for the sole purpose of network anomaly detection analysis. Your data will be handled securely and will not be stored, shared, or used for any other purpose.</p>
-                    <p>This process is in compliance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong> of the Philippines, ensuring the protection of your information.</p>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="privacyCheckbox">
-                        <label for="privacyCheckbox">I have read, understood, and agree to the terms.</label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="cancelModalBtn" class="btn-secondary">Cancel</button>
-                    <button id="continueSubmitBtn" class="btn-check" disabled>Agree & Analyze</button>
-                </div>
+      </div>
+      {% endif %} {% if accuracy is not none %}
+      <div class="results-section mt-5">
+        <div class="results-summary">
+          {% set accuracy_color = 'green' if accuracy >= 85 else ('yellow' if
+          accuracy >= 70 else 'red') %}
+          <div class="summary-card {{ accuracy_color }}">
+            <div class="card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
             </div>
+            <div class="card-content">
+              <span class="card-title">Model Accuracy</span>
+              <span class="card-value" data-target="{{ accuracy }}">0.00%</span>
+            </div>
+          </div>
+
+          {% set anomalies_count = results|length %} {% set anomalies_color =
+          'green' if anomalies_count <= 100 else ('yellow' if anomalies_count <=
+          1000 else 'red') %}
+          <div class="summary-card {{ anomalies_color }}">
+            <div class="card-icon">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+              </svg>
+            </div>
+            <div class="card-content">
+              <span class="card-title">Anomalies Found</span>
+              <span class="card-value" data-target="{{ anomalies_count }}"
+                >0</span
+              >
+            </div>
+          </div>
         </div>
+
+        {% if results is not none and not results.empty %}
+        <div class="data-visualization-grid mt-4">
+          <div class="data-card">
+            <h2 class="card-header-title">Protocol Distribution</h2>
+            <div class="chart-container">
+              <canvas id="protocolChart"></canvas>
+            </div>
+          </div>
+          <div class="data-card">
+            <h2 class="card-header-title">
+              Anomaly Visualization by Source Bytes
+            </h2>
+            {% if results|length > 25 %}
+            <p class="card-header-subtitle">
+              Showing the first 25 anomalies for clarity.
+            </p>
+            {% endif %}
+            <div class="chart-container">
+              <canvas id="anomalyChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="data-card info-card mt-4">
+          <div class="row g-5">
+            <div class="col-lg-6">
+              <h3 class="info-title">Risk Factors</h3>
+              <div class="info-item">
+                <div class="icon-container red">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M9.16669 12.5H10.8334V14.1667H9.16669V12.5ZM9.16669 5.83333H10.8334V10.8333H9.16669V5.83333ZM10.0001 1.66666C5.40008 1.66666 1.66675 5.4 1.66675 10C1.66675 14.6 5.40008 18.3333 10.0001 18.3333C14.6001 18.3333 18.3334 14.6 18.3334 10C18.3334 5.4 14.6001 1.66666 10.0001 1.66666Z"
+                      fill="#F47174"
+                    />
+                  </svg>
+                </div>
+                <p>
+                  High error rates or unusual service flags suggest potential
+                  exploits or DoS attacks.
+                </p>
+              </div>
+              <div class="info-item">
+                <div class="icon-container red">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M9.16669 12.5H10.8334V14.1667H9.16669V12.5ZM9.16669 5.83333H10.8334V10.8333H9.16669V5.83333ZM10.0001 1.66666C5.40008 1.66666 1.66675 5.4 1.66675 10C1.66675 14.6 5.40008 18.3333 10.0001 18.3333C14.6001 18.3333 18.3334 14.6 18.3334 10C18.3334 5.4 14.6001 1.66666 10.0001 1.66666Z"
+                      fill="#F47174"
+                    />
+                  </svg>
+                </div>
+                <p>
+                  Large data transfers (Src/Dst Bytes) on unexpected ports can
+                  indicate data exfiltration.
+                </p>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <h3 class="info-title">Recommendation</h3>
+              <div class="info-item">
+                <div class="icon-container green">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M10 1.66666C5.4 1.66666 1.66667 5.4 1.66667 10C1.66667 14.6 5.4 18.3333 10 18.3333C14.6 18.3333 18.3333 14.6 18.3333 10C18.3333 5.4 14.6 1.66666 10 1.66666ZM8.33333 14.1667L4.16667 10L5.34167 8.825L8.33333 11.8083L14.6583 5.48332L15.8333 6.66666L8.33333 14.1667Z"
+                      fill="#2ED47A"
+                    />
+                  </svg>
+                </div>
+                <p>
+                  Review all highlighted rows in the table below.
+                  Cross-reference connection times and services with expected
+                  network behavior.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="data-card mt-4">
+          <h2 class="card-header-title">Detection Details</h2>
+          <div class="table-responsive">
+            <table class="results-table" id="resultsTable">
+              <thead>
+                <tr>
+                  <th>Duration</th>
+                  <th>Protocol</th>
+                  <th>Service</th>
+                  <th>Flag</th>
+                  <th>Src Bytes</th>
+                  <th>Dst Bytes</th>
+                  <th>Count</th>
+                  <th>Error Rate</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for _, row in results.iterrows() %}
+                <tr class="{{ 'table-highlight' if row[24] > 0.5 else '' }}">
+                  <td>{{ "%.2f"|format(row[0]) }}</td>
+                  <td>{{ row[1] }}</td>
+                  <td>{{ row[2] }}</td>
+                  <td>{{ row[3] }}</td>
+                  <td>{{ row[4] }}</td>
+                  <td>{{ row[5] }}</td>
+                  <td>{{ row[22] }}</td>
+                  <td>{{ "%.3f"|format(row[24]) }}</td>
+                  <td>
+                    <button
+                      class="btn-details"
+                      onclick="showDetails({{ loop.index0 }})"
+                    >
+                      Details
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination-controls mt-3" id="pagination-controls">
+            <button id="prev-page" class="pagination-arrow" disabled>
+              &lt; Prev
+            </button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="next-page" class="pagination-arrow" disabled>
+              Next &gt;
+            </button>
+          </div>
+        </div>
+
+        {% for _, row in results.iterrows() %}
+        <div
+          id="details-{{ loop.index0 }}"
+          class="details-panel"
+          style="display: none"
+        >
+          <div class="details-content">
+            <div class="details-header">
+              <h3 class="details-title">
+                Connection Details #{{ loop.index }}
+              </h3>
+              <button
+                class="btn-close"
+                onclick="hideDetails({{ loop.index0 }})"
+              ></button>
+            </div>
+            <div class="details-grid">
+              <div class="detail-item">
+                <strong>Duration:</strong> {{ "%.2f"|format(row[0]) }}s
+              </div>
+              <div class="detail-item">
+                <strong>Protocol:</strong> {{ row[1] }}
+              </div>
+              <div class="detail-item">
+                <strong>Service:</strong> {{ row[2] }}
+              </div>
+              <div class="detail-item"><strong>Flag:</strong> {{ row[3] }}</div>
+              <div class="detail-item">
+                <strong>Source Bytes:</strong> {{ row[4] }}
+              </div>
+              <div class="detail-item">
+                <strong>Dest Bytes:</strong> {{ row[5] }}
+              </div>
+              <div class="detail-item">
+                <strong>Failed Logins:</strong> {{ row[10] }}
+              </div>
+              <div class="detail-item">
+                <strong>Root Shell:</strong> {{ row[13] }}
+              </div>
+              <div class="detail-item">
+                <strong>Connection Count:</strong> {{ row[22] }}
+              </div>
+              <div class="detail-item">
+                <strong>Service Count:</strong> {{ row[23] }}
+              </div>
+              <div class="detail-item">
+                <strong>Error Rate:</strong> {{ "%.3f"|format(row[24]) }}
+              </div>
+              <div class="detail-item">
+                <strong>Same Srv Rate:</strong> {{ "%.3f"|format(row[28]) }}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %} {% endif %}
+      </div>
+      {% endif %}
+
+      <div id="privacyModal" class="modal-overlay">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Privacy & Data Usage Policy</h2>
+            <button id="closeModalBtn" class="btn-close"></button>
+          </div>
+          <div class="modal-body">
+            <p>
+              By proceeding, you acknowledge that the data file you upload will
+              be processed for the sole purpose of network anomaly detection
+              analysis. Your data will be handled securely and will not be
+              stored, shared, or used for any other purpose.
+            </p>
+            <p>
+              This process is in compliance with the
+              <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>
+              of the Philippines, ensuring the protection of your information.
+            </p>
+            <div class="checkbox-container">
+              <input type="checkbox" id="privacyCheckbox" />
+              <label for="privacyCheckbox"
+                >I have read, understood, and agree to the terms.</label
+              >
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="cancelModalBtn" class="btn-secondary">Cancel</button>
+            <button id="continueSubmitBtn" class="btn-check" disabled>
+              Agree & Analyze
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script>
-        function showDetails(index) {
-            document.getElementById("details-" + index).style.display = "flex";
-        }
-        function hideDetails(index) {
-            document.getElementById("details-" + index).style.display = "none";
-        }
+      function showDetails(index) {
+          document.getElementById("details-" + index).style.display = "flex";
+      }
+      function hideDetails(index) {
+          document.getElementById("details-" + index).style.display = "none";
+      }
 
-        document.addEventListener("DOMContentLoaded", function() {
-        
-            const navbar = document.querySelector('.navbar');
-            if (navbar) {
-                window.addEventListener('scroll', () => {
-                    if (window.scrollY > 20) {
-                        navbar.classList.add('scrolled');
-                    } else {
-                        navbar.classList.remove('scrolled');
-                    }
-                });
-            }
+      document.addEventListener("DOMContentLoaded", function() {
+
+          const navbar = document.querySelector('.navbar');
+          if (navbar) {
+              window.addEventListener('scroll', () => {
+                  if (window.scrollY > 20) {
+                      navbar.classList.add('scrolled');
+                  } else {
+                      navbar.classList.remove('scrolled');
+                  }
+              });
+          }
 
 
-            const form = document.querySelector('.detection-form');
-            const modal = document.getElementById('privacyModal');
-            const checkbox = document.getElementById('privacyCheckbox');
-            const continueBtn = document.getElementById('continueSubmitBtn');
-            const closeBtn = document.getElementById('closeModalBtn');
-            const cancelBtn = document.getElementById('cancelModalBtn');
-            const fileInput = document.getElementById('file-upload');
+          const form = document.querySelector('.detection-form');
+          const modal = document.getElementById('privacyModal');
+          const checkbox = document.getElementById('privacyCheckbox');
+          const continueBtn = document.getElementById('continueSubmitBtn');
+          const closeBtn = document.getElementById('closeModalBtn');
+          const cancelBtn = document.getElementById('cancelModalBtn');
+          const fileInput = document.getElementById('file-upload');
 
-            if (form && modal && fileInput) {
-       
-                form.addEventListener('submit', function(event) {
-      
-                    if (fileInput.files.length > 0) {
-                        event.preventDefault(); 
-                        modal.style.display = 'flex'; 
-                    }
-                });
+          if (form && modal && fileInput) {
 
-                checkbox.addEventListener('change', function() {
-                    continueBtn.disabled = !this.checked;
-                });
+              form.addEventListener('submit', function(event) {
 
-                continueBtn.addEventListener('click', function() {
-                    if (checkbox.checked) {
-                        form.submit(); 
-                    }
-                });
+                  if (fileInput.files.length > 0) {
+                      event.preventDefault();
+                      modal.style.display = 'flex';
+                  }
+              });
 
-                const hideModal = () => {
-                    modal.style.display = 'none';
-                    checkbox.checked = false; 
-                    continueBtn.disabled = true; 
-                };
+              checkbox.addEventListener('change', function() {
+                  continueBtn.disabled = !this.checked;
+              });
 
-                closeBtn.addEventListener('click', hideModal);
-                cancelBtn.addEventListener('click', hideModal);
-                modal.addEventListener('click', function(event) {
-                    if (event.target === modal) {
-                        hideModal();
-                    }
-                });
-            }
+              continueBtn.addEventListener('click', function() {
+                  if (checkbox.checked) {
+                      form.submit();
+                  }
+              });
 
-            {% if results is not none and not results.empty %}
-       
-            const counters = document.querySelectorAll('.card-value[data-target]');
-            const animateCounter = (el) => {
-                const target = parseFloat(el.getAttribute('data-target'));
-                const duration = 1500;
-                const isPercentage = el.innerText.includes('%');
-                let startTimestamp = null;
-                
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const easedProgress = 1 - Math.pow(1 - progress, 4);
-                    
-                    if (isPercentage) {
-                        el.innerText = `${(easedProgress * target).toFixed(2)}%`;
-                    } else {
-                        el.innerText = Math.floor(easedProgress * target);
-                    }
-                    
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    } else {
-                        if (isPercentage) el.innerText = `${target.toFixed(2)}%`;
-                        else el.innerText = target;
-                        el.closest('.summary-card').classList.add('pulse-animation');
-                    }
-                };
-                window.requestAnimationFrame(step);
-            };
+              const hideModal = () => {
+                  modal.style.display = 'none';
+                  checkbox.checked = false;
+                  continueBtn.disabled = true;
+              };
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        animateCounter(entry.target);
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.5 });
-            counters.forEach(counter => observer.observe(counter));
+              closeBtn.addEventListener('click', hideModal);
+              cancelBtn.addEventListener('click', hideModal);
+              modal.addEventListener('click', function(event) {
+                  if (event.target === modal) {
+                      hideModal();
+                  }
+              });
+          }
 
-            const table = document.getElementById('resultsTable');
-            if (table) {
-                const tableRows = table.tBodies[0].rows;
-                const rowsPerPage = 10;
-                const pageCount = Math.ceil(tableRows.length / rowsPerPage);
-                const prevButton = document.getElementById('prev-page');
-                const nextButton = document.getElementById('next-page');
-                const pageInfo = document.getElementById('page-info');
-                let currentPage = 1;
+          {% if results is not none and not results.empty %}
 
-                function updateTableAndPagination() {
-                    const startIndex = (currentPage - 1) * rowsPerPage;
-                    Array.from(tableRows).forEach((row, index) => {
-                        row.style.display = (index >= startIndex && index < startIndex + rowsPerPage) ? '' : 'none';
-                    });
-                    pageInfo.textContent = `Page ${currentPage} of ${pageCount}`;
-                    prevButton.disabled = currentPage === 1;
-                    nextButton.disabled = currentPage === pageCount;
-                }
+          const counters = document.querySelectorAll('.card-value[data-target]');
+          const animateCounter = (el) => {
+              const target = parseFloat(el.getAttribute('data-target'));
+              const duration = 1500;
+              const isPercentage = el.innerText.includes('%');
+              let startTimestamp = null;
 
-                if (pageCount > 1) {
-                    prevButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; updateTableAndPagination(); } });
-                    nextButton.addEventListener('click', () => { if (currentPage < pageCount) { currentPage++; updateTableAndPagination(); } });
-                } else {
-                    document.getElementById('pagination-controls').style.display = 'none';
-                }
-                updateTableAndPagination();
-            }
+              const step = (timestamp) => {
+                  if (!startTimestamp) startTimestamp = timestamp;
+                  const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                  const easedProgress = 1 - Math.pow(1 - progress, 4);
 
-            const resultsData = [{% for _, row in results.iterrows() %}{ protocol: '{{ row[1] }}', srcBytes: {{ row[4] }} },{% endfor %}];
-            const protocolCounts = resultsData.reduce((acc, item) => { acc[item.protocol] = (acc[item.protocol] || 0) + 1; return acc; }, {});
-            
-            const anomalyChartCtx = document.getElementById('anomalyChart').getContext('2d');
-            new Chart(anomalyChartCtx, { type: 'bar', data: { labels: resultsData.slice(0, 25).map((_, i) => `Conn #${i + 1}`), datasets: [{ label: 'Source Bytes', data: resultsData.slice(0, 25).map(d => d.srcBytes), backgroundColor: 'rgba(76, 250, 239, 0.6)', borderColor: 'rgba(76, 250, 239, 1)', borderWidth: 1, borderRadius: 4 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: '#c1c1d1' }, grid: { color: 'rgba(63, 60, 122, 0.5)' }}, x: { ticks: { color: '#c1c1d1' }, grid: { display: false }}}, plugins: { legend: { display: false } }} });
-            
-            const protocolChartCtx = document.getElementById('protocolChart').getContext('2d');
-            const colorPalette = ['#4cfaef', '#2af598', '#ffb342', '#f95a9b', '#68d3fe'];
-            new Chart(protocolChartCtx, {
-                type: 'doughnut', data: { labels: Object.keys(protocolCounts), datasets: [{ data: Object.values(protocolCounts), backgroundColor: colorPalette, borderColor: 'rgba(24, 21, 60, 0.9)', borderWidth: 4, hoverOffset: 15 }] },
-                options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#c1c1d1', boxWidth: 15, padding: 20, font: { size: 14 } } }, tooltip: { bodyFont: { size: 14 }, titleFont: { size: 16 } } } }
-            });
-            {% endif %}
-        });
+                  if (isPercentage) {
+                      el.innerText = `${(easedProgress * target).toFixed(2)}%`;
+                  } else {
+                      el.innerText = Math.floor(easedProgress * target);
+                  }
+
+                  if (progress < 1) {
+                      window.requestAnimationFrame(step);
+                  } else {
+                      if (isPercentage) el.innerText = `${target.toFixed(2)}%`;
+                      else el.innerText = target;
+                      el.closest('.summary-card').classList.add('pulse-animation');
+                  }
+              };
+              window.requestAnimationFrame(step);
+          };
+
+          const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                  if (entry.isIntersecting) {
+                      animateCounter(entry.target);
+                      observer.unobserve(entry.target);
+                  }
+              });
+          }, { threshold: 0.5 });
+          counters.forEach(counter => observer.observe(counter));
+
+          const table = document.getElementById('resultsTable');
+          if (table) {
+              const tableRows = table.tBodies[0].rows;
+              const rowsPerPage = 10;
+              const pageCount = Math.ceil(tableRows.length / rowsPerPage);
+              const prevButton = document.getElementById('prev-page');
+              const nextButton = document.getElementById('next-page');
+              const pageInfo = document.getElementById('page-info');
+              let currentPage = 1;
+
+              function updateTableAndPagination() {
+                  const startIndex = (currentPage - 1) * rowsPerPage;
+                  Array.from(tableRows).forEach((row, index) => {
+                      row.style.display = (index >= startIndex && index < startIndex + rowsPerPage) ? '' : 'none';
+                  });
+                  pageInfo.textContent = `Page ${currentPage} of ${pageCount}`;
+                  prevButton.disabled = currentPage === 1;
+                  nextButton.disabled = currentPage === pageCount;
+              }
+
+              if (pageCount > 1) {
+                  prevButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; updateTableAndPagination(); } });
+                  nextButton.addEventListener('click', () => { if (currentPage < pageCount) { currentPage++; updateTableAndPagination(); } });
+              } else {
+                  document.getElementById('pagination-controls').style.display = 'none';
+              }
+              updateTableAndPagination();
+          }
+
+          const resultsData = [{% for _, row in results.iterrows() %}{ protocol: '{{ row[1] }}', srcBytes: {{ row[4] }} },{% endfor %}];
+          const protocolCounts = resultsData.reduce((acc, item) => { acc[item.protocol] = (acc[item.protocol] || 0) + 1; return acc; }, {});
+
+          const anomalyChartCtx = document.getElementById('anomalyChart').getContext('2d');
+          new Chart(anomalyChartCtx, { type: 'bar', data: { labels: resultsData.slice(0, 25).map((_, i) => `Conn #${i + 1}`), datasets: [{ label: 'Source Bytes', data: resultsData.slice(0, 25).map(d => d.srcBytes), backgroundColor: 'rgba(76, 250, 239, 0.6)', borderColor: 'rgba(76, 250, 239, 1)', borderWidth: 1, borderRadius: 4 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: '#c1c1d1' }, grid: { color: 'rgba(63, 60, 122, 0.5)' }}, x: { ticks: { color: '#c1c1d1' }, grid: { display: false }}}, plugins: { legend: { display: false } }} });
+
+          const protocolChartCtx = document.getElementById('protocolChart').getContext('2d');
+          const colorPalette = ['#4cfaef', '#2af598', '#ffb342', '#f95a9b', '#68d3fe'];
+          new Chart(protocolChartCtx, {
+              type: 'doughnut', data: { labels: Object.keys(protocolCounts), datasets: [{ data: Object.values(protocolCounts), backgroundColor: colorPalette, borderColor: 'rgba(24, 21, 60, 0.9)', borderWidth: 4, hoverOffset: 15 }] },
+              options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#c1c1d1', boxWidth: 15, padding: 20, font: { size: 14 } } }, tooltip: { bodyFont: { size: 14 }, titleFont: { size: 16 } } } }
+          });
+          {% endif %}
+      });
     </script>
-</body>
+  </body>
 </html>
