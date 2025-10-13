@@ -42,8 +42,13 @@ def ensemble_predict(models: list, data: np.ndarray, threshold: float) -> np.nda
     """Use ensemble of models for predictions with majority voting."""
     predictions = []
     
-    for model in models:
+    # Ensure threshold is float
+    threshold = float(threshold)
+    print(f"  ensemble_predict: threshold={threshold}, type={type(threshold)}")
+    
+    for i, model in enumerate(models):
         distances = model.transform(data).min(axis=1)
+        print(f"  ensemble_predict: model {i+1} distances type={type(distances)}, shape={distances.shape}, sample={distances[0] if len(distances) > 0 else 'N/A'}")
         pred = (distances > threshold).astype(int)
         predictions.append(pred)
     
@@ -186,19 +191,27 @@ def predict():
         df_test_scaled = scaler.transform(df_test)
         print(f"Step 11: Scaled data shape: {df_test_scaled.shape}")
         
+        print(f"Step 12: Ensemble prediction with threshold type: {type(optimal_threshold)}, value: {optimal_threshold}")
         # Use ensemble prediction
         anomalies_mask = ensemble_predict(ensemble_models, df_test_scaled, optimal_threshold)
+        print(f"Step 13: Anomalies mask shape: {anomalies_mask.shape}, type: {type(anomalies_mask)}")
         
+        print("Step 14: Calculating distances...")
         # Calculate confidence scores and distances
         distances_list = []
-        for model in ensemble_models:
+        for i, model in enumerate(ensemble_models):
+            print(f"Step 14.{i}: Processing model {i+1}/{len(ensemble_models)}")
             distances = model.transform(df_test_scaled).min(axis=1)
             distances_list.append(distances)
+        print("Step 15: Averaging distances...")
         distances = np.mean(distances_list, axis=0)
+        print(f"Step 16: Distances type: {type(distances)}, shape: {distances.shape}")
         confidence_scores = 1 / (1 + distances)
         
+        print("Step 17: Calculating severity levels...")
         # Calculate severity levels
         severity_levels = calculate_anomaly_severity(distances, optimal_threshold)
+        print(f"Step 18: Severity levels calculated: {len(severity_levels)} items")
         
         # Build results
         anomalies_indices = np.where(anomalies_mask)[0]
