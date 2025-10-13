@@ -71,14 +71,18 @@ def load_and_preprocess_data(file_path: Union[str, Path]) -> pd.DataFrame:
         features_to_keep = [f for f in features_to_keep if f in df.columns]
         df =df[features_to_keep]
 
-        # Ensure all remaining columns are numeric (Except for the wlabel)
+        # Ensure all remaining columns are numeric (Except for the label)
         for col in df.columns:
             if col != 'label':
-                df[col] = pd.to_numeric(df[col], errors = 'coerce').fillna(0)
+                # Force conversion to numeric, replacing any non-numeric values with 0
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                
+                # Ensure the column is float type for consistency
+                df[col] = df[col].astype(float)
 
                 # Apply log transformation to highly skewed features
                 if col in ['src_bytes', 'dst_bytes', 'count', 'srv_count']:
-                    df[col] = np.log1p(df[col]) # log1p handles zeros better
+                    df[col] = np.log1p(df[col])  # log1p handles zeros better
 
         return df
     except Exception as e:
@@ -122,8 +126,12 @@ def create_advanced_network_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Network flow characteristics
     if 'same_srv_rate' in df_enhanced.columns:
+        # Ensure numeric type before comparison
+        df_enhanced['same_srv_rate'] = pd.to_numeric(df_enhanced['same_srv_rate'], errors='coerce').fillna(0).astype(float)
         df_enhanced['same_srv_rate_high'] = (df_enhanced['same_srv_rate'] > 0.8).astype(int)
     if 'diff_srv_rate' in df_enhanced.columns:
+        # Ensure numeric type before comparison
+        df_enhanced['diff_srv_rate'] = pd.to_numeric(df_enhanced['diff_srv_rate'], errors='coerce').fillna(0).astype(float)
         df_enhanced['diff_srv_rate_high'] = (df_enhanced['diff_srv_rate'] > 0.8).astype(int)
 
     return df_enhanced
