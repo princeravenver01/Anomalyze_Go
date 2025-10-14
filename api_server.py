@@ -169,7 +169,6 @@ def trigger_retraining():
         import sys
         
         # Run retrain script in background
-        # For production, consider using Celery or similar task queue
         print("Starting retraining process...")
         result = subprocess.Popen(
             [sys.executable, 'retrain_model.py'],
@@ -271,7 +270,7 @@ def predict():
         stream.seek(0)
         df_test_original = pd.read_csv(stream, header=None)
         
-        # Save uploaded file for future training (with duplicate detection)
+        # Save uploaded file for future training
         print("Step 1.5: Checking for duplicate and saving file for incremental learning...")
         saved_path, is_duplicate = save_uploaded_file(file_content, file.filename or 'upload.txt')
         
@@ -497,5 +496,4 @@ if __name__ == '__main__':
         print("Failed to load models. Exiting...")
         exit(1)
 else:
-    # For gunicorn
     load_model()
