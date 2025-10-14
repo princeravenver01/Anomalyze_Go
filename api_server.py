@@ -405,9 +405,7 @@ def predict():
             'success': True,
             'anomalies': anomalies_data,
             'metrics': metrics,
-            'has_labels': has_labels,
-            'duplicate_file': is_duplicate,
-            'upload_counter': upload_counter if not is_duplicate else None
+            'has_labels': has_labels
         })
         
     except Exception as e:

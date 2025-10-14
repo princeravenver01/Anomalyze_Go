@@ -54,45 +54,45 @@ models/
 
 ## Duplicate Detection 🔍
 
-The system automatically detects and skips duplicate uploads:
+The system automatically detects and prevents saving duplicate uploads:
 
 ### How It Works
 
 - **SHA-256 Hash**: Each file is hashed upon upload
 - **Comparison**: Hash is compared against all existing files in `uploaded_logs/`
-- **Match Found**: File is marked as duplicate, not saved again
+- **Match Found**: File is analyzed normally but NOT saved (silent duplicate handling)
 - **No Match**: File is saved as new, counter increments
 
 ### Benefits
 
 ✅ **Prevents redundant storage** - Same file isn't saved multiple times  
 ✅ **Accurate counting** - Only unique files count toward retraining threshold  
-✅ **User feedback** - API response indicates if file was duplicate  
+✅ **Seamless UX** - Users still get analysis results, duplicate handling is transparent  
 ✅ **Fast comparison** - Hash-based comparison is efficient
 
-### API Response
+### User Experience
+
+**All uploads (duplicate or not):**
+- ✅ File is analyzed for anomalies
+- ✅ Results are returned to user
+- ✅ User sees normal response
+
+**Behind the scenes:**
+- 🔹 **Unique file**: Saved to `data/uploaded_logs/`, counter increments
+- 🔹 **Duplicate file**: NOT saved, counter stays the same
+
+**API Response (same for all uploads):**
 
 ```json
 {
   "success": true,
-  "duplicate_file": false,
-  "upload_counter": 5,
   "anomalies": [...],
-  "metrics": {...}
+  "metrics": {...},
+  "has_labels": true
 }
 ```
 
-If duplicate detected:
-
-```json
-{
-  "success": true,
-  "duplicate_file": true,
-  "upload_counter": null,
-  "anomalies": [...],
-  "metrics": {...}
-}
-```
+> **Note**: The API response is identical whether the file is unique or duplicate. Users always receive their analysis results without any indication of duplicate status.
 
 ## Configuration
 
