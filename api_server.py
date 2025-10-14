@@ -89,21 +89,46 @@ def calculate_anomaly_severity(distances: np.ndarray, threshold: float) -> list[
     return severity_levels
 
 
-def save_uploaded_file(file_content: str, filename: str) -> str:
-    """Save uploaded file to the uploaded_logs folder for future training."""
+def save_uploaded_file(file_content: str, filename: str) -> tuple[str, bool]:
+    """
+    Save uploaded file to the uploaded_logs folder for future training.
+    Returns tuple of (file_path, is_duplicate)
+    """
     from datetime import datetime
+    import hashlib
+    import glob
     
-    # Create unique filename with timestamp
+    # Calculate hash of uploaded file
+    file_hash = hashlib.sha256(file_content.encode()).hexdigest()
+    
+    # Check if this file already exists (compare hashes)
+    existing_files = glob.glob(os.path.join(UPLOADED_LOGS_FOLDER, '*.txt'))
+    
+    for existing_file in existing_files:
+        try:
+            with open(existing_file, 'r') as f:
+                existing_content = f.read()
+                existing_hash = hashlib.sha256(existing_content.encode()).hexdigest()
+                
+                if file_hash == existing_hash:
+                    print(f"⚠ Duplicate file detected! Matches: {os.path.basename(existing_file)}")
+                    print(f"   File hash: {file_hash[:16]}...")
+                    return existing_file, True  # Return existing file path, mark as duplicate
+        except Exception as e:
+            # Skip files that can't be read
+            continue
+    
+    # Not a duplicate - save the file
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     safe_filename = f"{timestamp}_{filename}"
     file_path = os.path.join(UPLOADED_LOGS_FOLDER, safe_filename)
     
-    # Save the file
     with open(file_path, 'w') as f:
         f.write(file_content)
     
-    print(f"✓ Saved uploaded file: {file_path}")
-    return file_path
+    print(f"✓ Saved new uploaded file: {file_path}")
+    print(f"   File hash: {file_hash[:16]}...")
+    return file_path, False  # Return new file path, not a duplicate
 
 
 def increment_upload_counter() -> int:
@@ -246,17 +271,20 @@ def predict():
         stream.seek(0)
         df_test_original = pd.read_csv(stream, header=None)
         
-        # Save uploaded file for future training
-        print("Step 1.5: Saving uploaded file for incremental learning...")
-        save_uploaded_file(file_content, file.filename or 'upload.txt')
+        # Save uploaded file for future training (with duplicate detection)
+        print("Step 1.5: Checking for duplicate and saving file for incremental learning...")
+        saved_path, is_duplicate = save_uploaded_file(file_content, file.filename or 'upload.txt')
         
-        # Increment upload counter and check if retraining needed
-        current_count = increment_upload_counter()
-        print(f"Step 1.6: Upload count: {current_count}/{RETRAIN_THRESHOLD}")
-        
-        if should_retrain():
-            print("Step 1.7: Retraining threshold reached - triggering retraining...")
-            trigger_retraining()
+        # Only increment counter if file is not a duplicate
+        if not is_duplicate:
+            current_count = increment_upload_counter()
+            print(f"Step 1.6: Upload count: {current_count}/{RETRAIN_THRESHOLD}")
+            
+            if should_retrain():
+                print("Step 1.7: Retraining threshold reached - triggering retraining...")
+                trigger_retraining()
+        else:
+            print(f"Step 1.6: Duplicate file - counter not incremented")
         print(f"Step 2: Original data shape: {df_test_original.shape}")
         
         stream.seek(0)
@@ -377,7 +405,9 @@ def predict():
             'success': True,
             'anomalies': anomalies_data,
             'metrics': metrics,
-            'has_labels': has_labels
+            'has_labels': has_labels,
+            'duplicate_file': is_duplicate,
+            'upload_counter': upload_counter if not is_duplicate else None
         })
         
     except Exception as e:
