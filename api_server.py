@@ -46,16 +46,12 @@ UPLOAD_COUNTER_PATH = os.path.join(MODELS_FOLDER, 'upload_counter.txt')
 
 
 def ensemble_predict(models: list, data: np.ndarray, threshold: float) -> np.ndarray:
-    """Use ensemble of models for predictions with majority voting."""
+    """Use ensemble of models for predictions with majority voting - OPTIMIZED."""
     predictions = []
-    
-    # Ensure threshold is float
     threshold = float(threshold)
-    print(f"  ensemble_predict: threshold={threshold}, type={type(threshold)}")
     
-    for i, model in enumerate(models):
+    for model in models:
         distances = model.transform(data).min(axis=1)
-        print(f"  ensemble_predict: model {i+1} distances type={type(distances)}, shape={distances.shape}, sample={distances[0] if len(distances) > 0 else 'N/A'}")
         pred = (distances > threshold).astype(int)
         predictions.append(pred)
     
@@ -248,7 +244,7 @@ def model_info():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    """Main prediction endpoint."""
+    """Main prediction endpoint - OPTIMIZED for speed."""
     start_time = time.time()
     
     if ensemble_models is None or optimal_threshold is None:
@@ -263,34 +259,29 @@ def predict():
         if file.filename == '':
             return jsonify({'error': 'Empty filename'}), 400
         
-        print("Step 1: Reading file...")
         # Read and preprocess data
         file_content = file.stream.read().decode("UTF8")
         stream = io.StringIO(file_content, newline=None)
         stream.seek(0)
         df_test_original = pd.read_csv(stream, header=None)
         
-        # Save uploaded file for future training
-        print("Step 1.5: Checking for duplicate and saving file for incremental learning...")
-        saved_path, is_duplicate = save_uploaded_file(file_content, file.filename or 'upload.txt')
+        # ASYNC: Save uploaded file in background (non-blocking)
+        # This doesn't delay the response
+        import threading
+        def save_async():
+            try:
+                saved_path, is_duplicate = save_uploaded_file(file_content, file.filename or 'upload.txt')
+                if not is_duplicate:
+                    increment_upload_counter()
+                    if should_retrain():
+                        trigger_retraining()
+            except:
+                pass  # Don't let background task crash main request
         
-        # Only increment counter if file is not a duplicate
-        if not is_duplicate:
-            current_count = increment_upload_counter()
-            print(f"Step 1.6: Upload count: {current_count}/{RETRAIN_THRESHOLD}")
-            
-            if should_retrain():
-                print("Step 1.7: Retraining threshold reached - triggering retraining...")
-                trigger_retraining()
-        else:
-            print(f"Step 1.6: Duplicate file - counter not incremented")
-        print(f"Step 2: Original data shape: {df_test_original.shape}")
+        threading.Thread(target=save_async, daemon=True).start()
         
         stream.seek(0)
-        print("Step 3: Starting preprocessing...")
         df_test = load_and_preprocess_data(stream)
-        print(f"Step 4: Preprocessed data shape: {df_test.shape}")
-        print(f"Step 5: Data types: {df_test.dtypes.to_dict()}")
         
         has_labels = 'label' in df_test.columns
         metrics = {}
@@ -301,53 +292,41 @@ def predict():
             df_test = df_test.drop('label', axis=1)
         
         # Ensure columns match and scale
-        print(f"Step 6: Reindexing to match training columns...")
         df_test = df_test.reindex(columns=data_columns, fill_value=0)
-        print(f"Step 7: After reindex shape: {df_test.shape}")
         
         # Ensure all columns are numeric before scaling
-        print("Step 8: Converting to numeric types...")
         for col in df_test.columns:
             df_test[col] = pd.to_numeric(df_test[col], errors='coerce').fillna(0).astype(float)
-        print(f"Step 9: After numeric conversion types: {df_test.dtypes.unique()}")
         
-        print("Step 10: Scaling data...")
         df_test_scaled = scaler.transform(df_test)
-        print(f"Step 11: Scaled data shape: {df_test_scaled.shape}")
         
-        print(f"Step 12: Ensemble prediction with threshold type: {type(optimal_threshold)}, value: {optimal_threshold}")
-        # Use ensemble prediction
-        anomalies_mask = ensemble_predict(ensemble_models, df_test_scaled, optimal_threshold)
-        print(f"Step 13: Anomalies mask shape: {anomalies_mask.shape}, type: {type(anomalies_mask)}")
-        
-        print("Step 14: Calculating distances...")
-        # Calculate confidence scores and distances
+        # OPTIMIZED: Calculate distances once and reuse
+        # Instead of calculating twice (once for prediction, once for confidence)
         distances_list = []
-        for i, model in enumerate(ensemble_models):
-            print(f"Step 14.{i}: Processing model {i+1}/{len(ensemble_models)}")
+        for model in ensemble_models:
             distances = model.transform(df_test_scaled).min(axis=1)
             distances_list.append(distances)
-        print("Step 15: Averaging distances...")
+        
         distances = np.mean(distances_list, axis=0)
-        print(f"Step 16: Distances type: {type(distances)}, shape: {distances.shape}")
+        
+        # Use distances for anomaly detection
+        threshold = float(optimal_threshold)
+        anomalies_mask = (distances > threshold).astype(int)
+        
         confidence_scores = 1 / (1 + distances)
         
-        print("Step 17: Calculating severity levels...")
         # Calculate severity levels
         severity_levels = calculate_anomaly_severity(distances, optimal_threshold)
-        print(f"Step 18: Severity levels calculated: {len(severity_levels)} items")
         
-        print("Step 19: Finding anomaly indices...")
-        # Build results
+        # Build results - OPTIMIZED: Only process anomalies
         anomalies_indices = np.where(anomalies_mask)[0]
-        print(f"Step 20: Found {len(anomalies_indices)} anomalies")
+        
+        # No limit - showing all anomalies
+        total_anomalies = len(anomalies_indices)
+        
         anomalies_data = []
         
-        print("Step 21: Building anomaly records...")
-        for i, idx in enumerate(anomalies_indices):
-            if i < 5:  # Log first 5 for debugging
-                print(f"Step 21.{i}: Processing anomaly at index {idx}")
-            
+        for idx in anomalies_indices:
             # Get the record and convert all values to JSON-serializable types
             anomaly_record = {}
             row_data = df_test_original.iloc[idx]
@@ -362,25 +341,18 @@ def predict():
                 else:
                     anomaly_record[str(col_idx)] = str(value)
             
-            if i < 2:  # Show first 2 record types
-                print(f"  Record types: {[(k, type(v).__name__) for k, v in list(anomaly_record.items())[:5]]}")
-            
             anomaly_record['confidence'] = float(confidence_scores[idx])
             anomaly_record['severity'] = severity_levels[idx]
             anomaly_record['distance'] = float(distances[idx])
             anomaly_record['index'] = int(idx)
             anomalies_data.append(anomaly_record)
-        print(f"Step 22: Built {len(anomalies_data)} anomaly records")
         
-        print("Step 23: Calculating metrics...")
         # Calculate metrics if labels are available
         if has_labels:
-            print("Step 24: Has labels, calculating accuracy metrics...")
             accuracy = accuracy_score(true_labels_binary, anomalies_mask)
             precision = precision_score(true_labels_binary, anomalies_mask, zero_division=0)
             recall = recall_score(true_labels_binary, anomalies_mask, zero_division=0)
             f1 = f1_score(true_labels_binary, anomalies_mask, zero_division=0)
-            print("Step 25: Metrics calculated successfully")
             
             metrics = {
                 'accuracy': float(accuracy * 100),
@@ -388,17 +360,22 @@ def predict():
                 'recall': float(recall * 100),
                 'f1_score': float(f1 * 100),
                 'total_samples': int(len(df_test_original)),
-                'anomalies_detected': int(len(anomalies_data)),
+                'anomalies_detected': int(total_anomalies),  # Total anomalies found
+                'anomalies_displayed': int(len(anomalies_data)),  # Shown in UI
                 'processing_time': float(time.time() - start_time),
                 'avg_confidence': float(np.mean(confidence_scores) * 100)
             }
         else:
             metrics = {
                 'total_samples': int(len(df_test_original)),
-                'anomalies_detected': int(len(anomalies_data)),
+                'anomalies_detected': int(total_anomalies),  # Total anomalies found
+                'anomalies_displayed': int(len(anomalies_data)),  # Shown in UI
                 'processing_time': float(time.time() - start_time),
                 'avg_confidence': float(np.mean(confidence_scores) * 100)
             }
+        
+        display_msg = f"Processed {len(df_test_original)} samples in {time.time() - start_time:.2f}s - {total_anomalies} anomalies detected (showing all)"
+        print(display_msg)
         
         return jsonify({
             'success': True,

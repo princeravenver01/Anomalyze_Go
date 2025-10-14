@@ -62,10 +62,39 @@
         </a>
         <div class="nav-links">
           <a href="/">New Analysis</a>
-          <a href="#">Analysis History</a>
+          <a href="#" id="historyLink" onclick="showHistory(); return false;">
+            Analysis History
+            <span id="historyCount" class="history-badge">0</span>
+          </a>
         </div>
       </div>
     </nav>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal" style="display: none;">
+      <div class="modal-content-wide">
+        <div class="modal-header">
+          <h2 class="modal-title">📊 Analysis History</h2>
+          <button class="close-btn" id="closeHistoryBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary mb-3">
+            Session history (cleared on browser refresh/restart)
+          </p>
+          <div id="historyList" class="history-list">
+            <div class="empty-history">
+              <div class="empty-icon">📭</div>
+              <p>No analysis history yet</p>
+              <small>Upload a file to start analyzing</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="clearHistory()">Clear All History</button>
+            <button class="btn-primary" id="closeHistoryBtn2">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <main class="container content-wrapper">
       <div class="detection-container">
@@ -285,6 +314,11 @@
 
         <div class="data-card mt-4">
           <h2 class="card-header-title">Detection Details</h2>
+          {% if metrics and metrics.anomalies_detected and metrics.anomalies_displayed and metrics.anomalies_detected > metrics.anomalies_displayed %}
+          <div class="info-banner" style="background: rgba(255, 179, 66, 0.1); border-left: 4px solid #ffb342; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+            <strong>ℹ️ Note:</strong> Showing top {{ metrics.anomalies_displayed }} most severe anomalies out of {{ metrics.anomalies_detected }} total detected (sorted by severity).
+          </div>
+          {% endif %}
           <div class="table-responsive">
             <table class="results-table" id="resultsTable">
               <thead>
@@ -434,7 +468,148 @@
       </div>
     </main>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner">
+          <div class="spinner-ring"></div>
+          <div class="spinner-ring"></div>
+          <div class="spinner-ring"></div>
+        </div>
+        <h3 class="loading-title">Analyzing Network Data</h3>
+        <p class="loading-text">Processing <span id="loadingFileName"></span>...</p>
+        <div class="loading-stats">
+          <div class="stat-item">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-label">Preprocessing Data</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-label">Running ML Models</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">📊</div>
+            <div class="stat-label">Detecting Anomalies</div>
+          </div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill"></div>
+        </div>
+      </div>
+    </div>
+
     <script>
+      // Analysis History Functions (Session Storage)
+      function saveToHistory(data) {
+          const history = getHistory();
+          const historyItem = {
+              id: Date.now(),
+              timestamp: new Date().toISOString(),
+              fileName: data.fileName,
+              totalSamples: data.totalSamples,
+              anomaliesDetected: data.anomaliesDetected,
+              accuracy: data.accuracy,
+              processingTime: data.processingTime
+          };
+          
+          history.unshift(historyItem);
+          
+          // Keep only last 10 items
+          if (history.length > 10) {
+              history.splice(10);
+          }
+          
+          sessionStorage.setItem('analysisHistory', JSON.stringify(history));
+          updateHistoryBadge();
+      }
+      
+      function getHistory() {
+          const stored = sessionStorage.getItem('analysisHistory');
+          return stored ? JSON.parse(stored) : [];
+      }
+      
+      function updateHistoryBadge() {
+          const history = getHistory();
+          const badge = document.getElementById('historyCount');
+          if (badge) {
+              badge.textContent = history.length;
+              badge.style.display = history.length > 0 ? 'inline-block' : 'none';
+          }
+      }
+      
+      function showHistory() {
+          const history = getHistory();
+          const historyModal = document.getElementById('historyModal');
+          const historyList = document.getElementById('historyList');
+          
+          if (history.length === 0) {
+              historyList.innerHTML = `
+                  <div class="empty-history">
+                      <div class="empty-icon">📭</div>
+                      <p>No analysis history yet</p>
+                      <small>Upload a file to start analyzing</small>
+                  </div>
+              `;
+          } else {
+              historyList.innerHTML = history.map(item => `
+                  <div class="history-item">
+                      <div class="history-header">
+                          <div class="history-title">
+                              <span class="history-icon">📄</span>
+                              <strong>${item.fileName || 'Unknown File'}</strong>
+                          </div>
+                          <div class="history-time">${formatTimestamp(item.timestamp)}</div>
+                      </div>
+                      <div class="history-stats">
+                          <div class="history-stat">
+                              <span class="stat-label">Samples:</span>
+                              <span class="stat-value">${item.totalSamples?.toLocaleString() || 'N/A'}</span>
+                          </div>
+                          <div class="history-stat">
+                              <span class="stat-label">Anomalies:</span>
+                              <span class="stat-value anomaly-count">${item.anomaliesDetected?.toLocaleString() || 'N/A'}</span>
+                          </div>
+                          ${item.accuracy ? `
+                          <div class="history-stat">
+                              <span class="stat-label">Accuracy:</span>
+                              <span class="stat-value">${item.accuracy.toFixed(2)}%</span>
+                          </div>
+                          ` : ''}
+                          <div class="history-stat">
+                              <span class="stat-label">Time:</span>
+                              <span class="stat-value">${item.processingTime?.toFixed(2) || '0.00'}s</span>
+                          </div>
+                      </div>
+                  </div>
+              `).join('');
+          }
+          
+          historyModal.style.display = 'flex';
+      }
+      
+      function clearHistory() {
+          if (confirm('Are you sure you want to clear all history?')) {
+              sessionStorage.removeItem('analysisHistory');
+              updateHistoryBadge();
+              showHistory();
+          }
+      }
+      
+      function formatTimestamp(isoString) {
+          const date = new Date(isoString);
+          const now = new Date();
+          const diffMs = now - date;
+          const diffMins = Math.floor(diffMs / 60000);
+          
+          if (diffMins < 1) return 'Just now';
+          if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+          
+          const diffHours = Math.floor(diffMins / 60);
+          if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+          
+          return date.toLocaleString();
+      }
+
       function showDetails(index) {
           document.getElementById("details-" + index).style.display = "flex";
       }
@@ -443,6 +618,8 @@
       }
 
       document.addEventListener("DOMContentLoaded", function() {
+          // Initialize history badge on page load
+          updateHistoryBadge();
 
           const navbar = document.querySelector('.navbar');
           if (navbar) {
@@ -471,6 +648,10 @@
                   if (fileInput.files.length > 0) {
                       event.preventDefault();
                       modal.style.display = 'flex';
+                      
+                      // Set the file name in loading overlay
+                      const fileName = fileInput.files[0].name;
+                      document.getElementById('loadingFileName').textContent = fileName;
                   }
               });
 
@@ -480,6 +661,11 @@
 
               continueBtn.addEventListener('click', function() {
                   if (checkbox.checked) {
+                      // Hide modal and show loading overlay
+                      modal.style.display = 'none';
+                      document.getElementById('loadingOverlay').style.display = 'flex';
+                      
+                      // Submit the form
                       form.submit();
                   }
               });
@@ -499,12 +685,52 @@
               });
           }
 
+          // History modal handlers
+          const historyModal = document.getElementById('historyModal');
+          const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+          const closeHistoryBtn2 = document.getElementById('closeHistoryBtn2');
+          
+          if (closeHistoryBtn) {
+              closeHistoryBtn.addEventListener('click', function() {
+                  historyModal.style.display = 'none';
+              });
+          }
+          
+          if (closeHistoryBtn2) {
+              closeHistoryBtn2.addEventListener('click', function() {
+                  historyModal.style.display = 'none';
+              });
+          }
+          
+          if (historyModal) {
+              historyModal.addEventListener('click', function(event) {
+                  if (event.target === historyModal) {
+                      historyModal.style.display = 'none';
+                  }
+              });
+          }
+
           {% if results is not none and not results.empty %}
+
+          // Hide loading overlay immediately when results page loads
+          const loadingOverlay = document.getElementById('loadingOverlay');
+          if (loadingOverlay) {
+              loadingOverlay.style.display = 'none';
+          }
+
+          // Save this analysis to history
+          saveToHistory({
+              fileName: '{{ request.files.get("file").filename if request.files.get("file") else "Unknown" }}',
+              totalSamples: {{ metrics.get('total_samples', 0) }},
+              anomaliesDetected: {{ metrics.get('anomalies_detected', 0) }},
+              accuracy: {{ metrics.get('accuracy', 0) }},
+              processingTime: {{ metrics.get('processing_time', 0) }}
+          });
 
           const counters = document.querySelectorAll('.card-value[data-target]');
           const animateCounter = (el) => {
               const target = parseFloat(el.getAttribute('data-target'));
-              const duration = 1500;
+              const duration = 800; // Reduced from 1500ms to 800ms for faster display
               const isPercentage = el.innerText.includes('%');
               let startTimestamp = null;
 
@@ -569,17 +795,72 @@
               updateTableAndPagination();
           }
 
-          const resultsData = [{% for row in results %}{ protocol: '{{ row['1'] }}', srcBytes: {{ row['4'] }} },{% endfor %}];
+          // Optimize: Only process first 100 results for charts to avoid UI lag
+          const resultsData = [{% for row in results[:100] %}{ protocol: '{{ row['1'] }}', srcBytes: {{ row['4'] }} },{% endfor %}];
           const protocolCounts = resultsData.reduce((acc, item) => { acc[item.protocol] = (acc[item.protocol] || 0) + 1; return acc; }, {});
 
-          const anomalyChartCtx = document.getElementById('anomalyChart').getContext('2d');
-          new Chart(anomalyChartCtx, { type: 'bar', data: { labels: resultsData.slice(0, 25).map((_, i) => `Conn #${i + 1}`), datasets: [{ label: 'Source Bytes', data: resultsData.slice(0, 25).map(d => d.srcBytes), backgroundColor: 'rgba(76, 250, 239, 0.6)', borderColor: 'rgba(76, 250, 239, 1)', borderWidth: 1, borderRadius: 4 }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: '#c1c1d1' }, grid: { color: 'rgba(63, 60, 122, 0.5)' }}, x: { ticks: { color: '#c1c1d1' }, grid: { display: false }}}, plugins: { legend: { display: false } }} });
+          // Use requestAnimationFrame to defer chart rendering and show page faster
+          requestAnimationFrame(() => {
+              const anomalyChartCtx = document.getElementById('anomalyChart').getContext('2d');
+              new Chart(anomalyChartCtx, { 
+                  type: 'bar', 
+                  data: { 
+                      labels: resultsData.slice(0, 25).map((_, i) => `Conn #${i + 1}`), 
+                      datasets: [{ 
+                          label: 'Source Bytes', 
+                          data: resultsData.slice(0, 25).map(d => d.srcBytes), 
+                          backgroundColor: 'rgba(76, 250, 239, 0.6)', 
+                          borderColor: 'rgba(76, 250, 239, 1)', 
+                          borderWidth: 1, 
+                          borderRadius: 4 
+                      }] 
+                  }, 
+                  options: { 
+                      maintainAspectRatio: false, 
+                      animation: { duration: 500 }, // Faster chart animation
+                      scales: { 
+                          y: { beginAtZero: true, ticks: { color: '#c1c1d1' }, grid: { color: 'rgba(63, 60, 122, 0.5)' }}, 
+                          x: { ticks: { color: '#c1c1d1' }, grid: { display: false }}
+                      }, 
+                      plugins: { legend: { display: false } } 
+                  } 
+              });
+          });
 
-          const protocolChartCtx = document.getElementById('protocolChart').getContext('2d');
-          const colorPalette = ['#4cfaef', '#2af598', '#ffb342', '#f95a9b', '#68d3fe'];
-          new Chart(protocolChartCtx, {
-              type: 'doughnut', data: { labels: Object.keys(protocolCounts), datasets: [{ data: Object.values(protocolCounts), backgroundColor: colorPalette, borderColor: 'rgba(24, 21, 60, 0.9)', borderWidth: 4, hoverOffset: 15 }] },
-              options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#c1c1d1', boxWidth: 15, padding: 20, font: { size: 14 } } }, tooltip: { bodyFont: { size: 14 }, titleFont: { size: 16 } } } }
+          // Defer second chart rendering for even faster page display
+          requestAnimationFrame(() => {
+              setTimeout(() => {
+                  const protocolChartCtx = document.getElementById('protocolChart').getContext('2d');
+                  const colorPalette = ['#4cfaef', '#2af598', '#ffb342', '#f95a9b', '#68d3fe'];
+                  new Chart(protocolChartCtx, {
+                      type: 'doughnut', 
+                      data: { 
+                          labels: Object.keys(protocolCounts), 
+                          datasets: [{ 
+                              data: Object.values(protocolCounts), 
+                              backgroundColor: colorPalette, 
+                              borderColor: 'rgba(24, 21, 60, 0.9)', 
+                              borderWidth: 4, 
+                              hoverOffset: 15 
+                          }] 
+                      },
+                      options: { 
+                          maintainAspectRatio: false, 
+                          animation: { duration: 500 }, // Faster chart animation
+                          cutout: '70%', 
+                          plugins: { 
+                              legend: { 
+                                  position: 'bottom', 
+                                  labels: { color: '#c1c1d1', boxWidth: 15, padding: 20, font: { size: 14 } } 
+                              }, 
+                              tooltip: { 
+                                  bodyFont: { size: 14 }, 
+                                  titleFont: { size: 16 } 
+                              } 
+                          } 
+                      }
+                  });
+              }, 100); // Slight delay to prioritize first chart
           });
           {% endif %}
       });

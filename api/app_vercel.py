@@ -80,11 +80,20 @@ def upload_file():
                              accuracy=metrics.get('accuracy'))
         
     except requests.exceptions.Timeout:
-        return jsonify({'error': 'API request timed out'}), 504
+        return render_template('index.html', 
+                             error='API request timed out',
+                             results=None, 
+                             accuracy=None)
     except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'API connection error: {str(e)}'}), 503
+        return render_template('index.html', 
+                             error=f'API connection error: {str(e)}',
+                             results=None, 
+                             accuracy=None)
     except Exception as e:
-        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+        return render_template('index.html', 
+                             error=f'Error processing file: {str(e)}',
+                             results=None, 
+                             accuracy=None)
 
 
 @app.route('/api/health', methods=['GET'])
