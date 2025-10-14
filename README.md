@@ -16,7 +16,9 @@ Anomalyze is an optimized network anomaly detection system that uses ensemble K-
 - **⚡ Ultra-Fast Processing**: 47,000+ samples per second processing speed
 - **🎯 High Accuracy**: 86.24% accuracy with 87.17% F1-score
 - **🔄 Optimized K-means Ensemble**: 5 different K-means models with optimized configurations
-- **🤖 Incremental Learning**: Automatically saves uploaded logs and retrains model after 10 uploads
+- **🤖 Incremental Learning**: Automatically saves unique uploaded logs and retrains model after 10 uploads
+- **🔍 Smart Duplicate Detection**: SHA-256 hash-based duplicate prevention (transparent to users)
+- **☁️ Cloud Deployed**: Frontend on Vercel, ML API on Render for global accessibility
 - **📊 Real-time Analysis**: Instant anomaly detection results with sub-second response times
 - **📈 Comprehensive Metrics**: Detailed performance analytics with precision, recall, and confidence scoring
 - **🎨 User-Friendly Interface**: Clean Flask web application for easy interaction
@@ -36,101 +38,78 @@ Anomalyze is an optimized network anomaly detection system that uses ensemble K-
 
 ## 🛠️ Technology Stack
 
-- **Backend**: Python 3.14+, Flask 3.0+
+- **Backend API**: Python 3.12+, Flask 3.0+, Flask-CORS (deployed on Render)
+- **Frontend**: Flask, HTML, CSS, JavaScript (deployed on Vercel)
 - **Machine Learning**: scikit-learn 1.4+, NumPy 1.26+, Pandas 2.1+
-- **Frontend**: HTML, CSS, JavaScript
 - **Data Processing**: Optimized preprocessing with modern Python features
 - **Model Storage**: Joblib for efficient model serialization
+- **Deployment**: Vercel (Frontend) + Render (Backend API)
+- **Duplicate Detection**: SHA-256 hashing for file comparison
 
-## 📋 Prerequisites
+## 🌐 Live Demo
 
-- **Python 3.14 or higher** (recommended for optimal performance)
-- pip package manager (latest version)
-- At least 4GB RAM (recommended for large datasets)
-- 2GB free disk space
-- Virtual environment support (recommended)
+**Production URL**: [https://anomalyze.vercel.app](https://anomalyze.vercel.app)
 
-## 🔧 Installation
+- Frontend hosted on Vercel (globally distributed)
+- ML API hosted on Render (always-on backend)
+- Upload network logs and get instant anomaly detection results
 
-1. **Clone the repository**
+## � Quick Start
 
-   ```bash
-   git clone https://github.com/pasta-lover69/Anomalyze.git
-   cd Anomalyze
-   ```
+### Using the Live Application
 
-2. **Verify Python 3.14+ installation**
+1. **Visit the deployed application**: [https://anomalyze.vercel.app](https://anomalyze.vercel.app)
+2. **Upload your network log file** (KDD Cup 1999 format)
+3. **View instant analysis results** with anomaly detection and metrics
+4. **Review detected anomalies** with confidence scores and severity levels
 
-   ```bash
-   python --version  # Should show Python 3.14.x
-   ```
+### For Developers
 
-3. **Create a virtual environment** (highly recommended for Python 3.14)
+If you want to contribute or deploy your own instance:
 
-   ```bash
-   python -m venv anomalyze_env
+- **Frontend Deployment**: Fork repo → Deploy to Vercel
+- **Backend API Deployment**: Fork repo → Deploy to Render
+- **Documentation**: See deployment details below
 
-   # On Windows
-   anomalyze_env\Scripts\activate
+## 📋 System Requirements
 
-   # On macOS/Linux
-   source anomalyze_env/bin/activate
-   ```
+### Production Environment:
 
-4. **Upgrade pip and install dependencies**
+- **Frontend**: Vercel (Node.js environment)
+- **Backend**: Render (Python 3.12+)
+- **Storage**: 2GB minimum for models and data
+- **Memory**: 4GB RAM recommended for backend
 
-   ```bash
-   # Upgrade pip for Python 3.14 compatibility
-   python -m pip install --upgrade pip
+### Development Environment (Optional):
 
-   # Install dependencies
-   pip install -r requirements.txt
-   ```
+- **Python 3.12 or higher** (Python 3.14 recommended)
+- pip package manager
+- Virtual environment support
+- 4GB RAM minimum
 
-5. **Train the model** (required for first run)
+## 🎯 How to Use
 
-   ```bash
-   python train_model.py
-   ```
+1. **Access the Application**
 
-6. **Optimize threshold** (optional, for maximum accuracy)
+   - Navigate to [https://anomalyze.vercel.app](https://anomalyze.vercel.app)
 
-   ```bash
-   python optimize_threshold.py
-   ```
+2. **Prepare Your Data**
 
-7. **Test performance** (optional, to verify speed and accuracy)
+   - Format: KDD Cup 1999 network log format
+   - File type: `.txt` or `.csv`
+   - Sample data available in the repository
 
-   ```bash
-   python test_performance.py
-   ```
+3. **Upload and Analyze**
 
-8. **Run the application**
+   - Click "Choose File" and select your network log
+   - Click "Analyze Network Traffic"
+   - Wait for analysis (typically <1 second)
 
-   ```bash
-   python app.py
-   ```
-
-9. **Access the web interface**
-   - Open your browser and navigate to `http://localhost:5000`
-
-## 🐍 Python 3.14 Enhancements
-
-Anomalyze is now fully optimized for Python 3.14, providing:
-
-- **⚡ 25% Performance Boost**: 67,500+ samples/second (up from 47K)
-- **🔧 Modern Syntax**: Enhanced type hints and future annotations
-- **📦 Latest Dependencies**: Flask 3.1+, pandas 2.3+, scikit-learn 1.7+
-- **🛡️ Future Compatibility**: Forward-compatible code for upcoming Python versions
-
-### Python 3.14 Performance Results:
-
-```
-Processing Speed: 67,506 samples/second
-Accuracy: 86.24%
-F1-Score: 87.17%
-Processing Time: 0.334 seconds (22,544 samples)
-```
+4. **Review Results**
+   - View total samples analyzed
+   - See anomalies detected with confidence scores
+   - Check severity levels (Normal, Low, Medium, High, Critical)
+   - Download results if needed
 
 ## 📊 Dataset
 
@@ -165,6 +144,35 @@ The system is designed to work with the **KDD Cup 1999** network intrusion detec
 4. **Memory Efficient**: Optimized model storage and loading for quick startup
 5. **Vectorized Operations**: NumPy-optimized distance calculations for maximum speed
 
+## 🤖 Incremental Learning System
+
+Anomalyze features an **automatic incremental learning system** that continuously improves the model:
+
+### How It Works:
+
+1. **Upload & Analysis**: User uploads network logs → system analyzes for anomalies
+2. **Smart Storage**: Unique files are saved to `data/uploaded_logs/` (duplicates are detected via SHA-256 hash and skipped)
+3. **Counter Tracking**: System counts unique uploads in `models/upload_counter.txt`
+4. **Auto-Retraining**: After 10 unique uploads, `retrain_model.py` runs automatically in the background
+5. **Model Update**: New model is trained combining original data + uploaded logs, then deployed
+6. **Archiving**: Uploaded logs are moved to `archived/` folder after successful retraining
+
+### Benefits:
+
+- ✅ **Continuous Improvement**: Model adapts to new traffic patterns over time
+- ✅ **Fully Automatic**: No manual intervention required
+- ✅ **Duplicate Prevention**: SHA-256 hashing prevents storing same file multiple times
+- ✅ **Transparent UX**: Users always get analysis results, storage happens in background
+- ✅ **Configurable**: Adjust retraining threshold in `api_server.py` (default: 10 uploads)
+
+### Manual Retraining:
+
+```bash
+python retrain_model.py
+```
+
+See [INCREMENTAL_LEARNING.md](INCREMENTAL_LEARNING.md) for detailed documentation.
+
 ## 📈 Performance Metrics & Benchmarks
 
 ### Real-World Performance Results:
@@ -184,65 +192,72 @@ The system is designed to work with the **KDD Cup 1999** network intrusion detec
 
 ## 🎯 Usage
 
-### Web Interface
+Access the live application at [https://anomalyze.vercel.app](https://anomalyze.vercel.app):
 
-1. Start the application: `python app.py`
-2. Upload a CSV file with network traffic data
-3. View detection results with confidence scores and severity levels
-4. Analyze performance metrics (if ground truth labels are provided)
+1. **Upload File**: Click "Choose File" and select your network log (KDD Cup 1999 format)
+2. **Analyze**: Click "Analyze Network Traffic" button
+3. **View Results**: See real-time anomaly detection with confidence scores
+4. **Review Metrics**: Check accuracy, precision, recall, and F1-score (if labels provided)
+5. **Automatic Learning**: Unique files are saved for model improvement (duplicates skipped)
 
-### Programmatic Usage
+### API Integration
 
-```python
-from utils.preprocessing import load_and_preprocess_data
-import joblib
-import numpy as np
+You can also integrate Anomalyze into your applications via the API:
 
-# Load trained models
-ensemble_models = joblib.load('models/ensemble_models.joblib')
-scaler = joblib.load('models/scaler.joblib')
-threshold = joblib.load('models/optimal_threshold.joblib')
+**Endpoint**: `https://anomalyze-f7u0.onrender.com/api/predict`
 
-# Preprocess your data
-df = load_and_preprocess_data('your_data.csv', enhanced=True)
-df_scaled = scaler.transform(df)
-
-# Make predictions
-distances = []
-for model in ensemble_models:
-    dist = model.transform(df_scaled).min(axis=1)
-    distances.append(dist)
-
-avg_distances = np.mean(distances, axis=0)
-anomalies = (avg_distances > threshold).astype(int)
+```bash
+curl -X POST \
+  -F "file=@network_logs.txt" \
+  https://anomalyze-f7u0.onrender.com/api/predict
 ```
+
+Response includes:
+
+- Detected anomalies with confidence scores
+- Severity levels (Normal, Low, Medium, High, Critical)
+- Performance metrics (if labels provided)
+- Processing time and sample count
 
 ## 📁 Project Structure
 
 ```
 Anomalyze/
-├── app.py                    # Main Flask application (optimized)
-├── train_model.py            # Model training script (streamlined)
-├── optimize_threshold.py     # Threshold optimization utility
-├── test_performance.py       # Performance testing and benchmarking
-├── requirements.txt          # Python dependencies
-├── README.md                # Project documentation
-├── data/                    # Training data
-│   └── KDDTrain+.txt
-├── models/                  # Saved models and scalers
-│   ├── ensemble_models.joblib    # 5 optimized K-means models
+├── api_server.py                # Backend API server (Render deployment)
+├── train_model.py               # Initial model training script
+├── retrain_model.py             # Automatic retraining with uploaded data
+├── optimize_threshold.py        # Threshold optimization utility
+├── test_performance.py          # Performance testing and benchmarking
+├── requirements.txt             # Root dependencies
+├── requirements-render.txt      # Backend API dependencies
+├── render.yaml                  # Render deployment config
+├── vercel.json                  # Vercel deployment config
+├── runtime.txt                  # Python version specification
+├── README.md                    # Main documentation
+├── INCREMENTAL_LEARNING.md      # Incremental learning documentation
+├── api/                         # Vercel frontend
+│   ├── index.py                 # Vercel entry point
+│   ├── app_vercel.py            # Frontend Flask app
+│   ├── requirements.txt         # Frontend dependencies
+│   ├── templates/
+│   │   └── index.html
+│   └── static/
+│       └── style.css
+├── data/                        # Training data
+│   ├── KDDTrain+.txt            # Original training dataset
+│   └── uploaded_logs/           # User uploaded files
+│       ├── .gitkeep
+│       └── archived/            # Archived after retraining
+├── models/                      # Saved models and scalers
+│   ├── ensemble_models.joblib   # 5 optimized K-means models
 │   ├── scaler.joblib            # StandardScaler for preprocessing
 │   ├── data_columns.joblib      # Column names for consistency
-│   └── optimal_threshold.joblib # Optimized threshold (3.89)
-├── static/                  # CSS and static files
-│   └── style.css
-├── templates/               # HTML templates
-│   └── index.html
-├── uploads/                 # Upload directory
+│   ├── optimal_threshold.joblib # Optimized threshold
+│   └── upload_counter.txt       # Tracks uploads for retraining
+├── uploads/                     # Test data
 │   └── KDDTest.txt
-└── utils/                   # Utility modules
-    ├── preprocessing.py     # Optimized data preprocessing
-    └── __pycache__/
+└── utils/                       # Utility modules
+    └── preprocessing.py         # Optimized data preprocessing
 ```
 
 ## 🔄 Model Training & Optimization
@@ -339,56 +354,30 @@ kmeans_configs = [
 
 ## 🐛 Troubleshooting & Performance Testing
 
-### Performance Verification
+### System Status
 
-Run the built-in performance test to verify your installation:
-
-```bash
-python test_performance.py
-```
-
-Expected output:
-
-```
-✓ FAST: Processing time is excellent
-✓ EXCELLENT: Model accuracy is very good
-Processing Speed: 47,000+ samples/second
-Accuracy: 86%+
-```
-
-### Threshold Optimization
-
-If accuracy is lower than expected, optimize the threshold:
-
-```bash
-python optimize_threshold.py
-```
-
-This will test different thresholds and save the optimal one automatically.
+- **Frontend**: Check Vercel deployment status at [https://anomalyze.vercel.app](https://anomalyze.vercel.app)
+- **Backend API**: Health check at [https://anomalyze-f7u0.onrender.com/health](https://anomalyze-f7u0.onrender.com/health)
+- **Model Info**: API endpoint at [https://anomalyze-f7u0.onrender.com/api/model-info](https://anomalyze-f7u0.onrender.com/api/model-info)
 
 ### Common Issues
 
-1. **"Model files not found"**
+1. **Slow initial response (first upload)**
 
-   - Solution: Run `python train_model.py` to train the models first
+   - Render backend may be in sleep mode
+   - First request can take 30-60 seconds to wake up
+   - Subsequent requests are instant
 
-2. **Low accuracy (<80%)**
+2. **File format error**
 
-   - Solution: Run `python optimize_threshold.py` to find optimal threshold
-   - Alternative: Retrain with `python train_model.py`
+   - Ensure file is in KDD Cup 1999 format
+   - File should be comma-separated or tab-separated
+   - Check sample data in repository for reference
 
-3. **Slow processing (>2 seconds)**
-
-   - Check: Run `python test_performance.py` to benchmark
-   - Solution: Ensure you're using the optimized models from recent training
-
-4. **Memory errors during training**
-
-   - Solution: Reduce dataset size or increase available RAM
-
-5. **Web interface not loading**
-   - Check: Flask installation with `pip install flask`
-   - Check: Port 5000 availability
+3. **Upload timeout**
+   - Large files (>50MB) may timeout
+   - Consider splitting into smaller batches
+   - Contact support for bulk processing
    - Try: Different port with `app.run(port=5001)`
 
 ### Performance Troubleshooting
@@ -399,6 +388,70 @@ This will test different thresholds and save the optimal one automatically.
 | Accuracy | >85%             | <80%   | Run `optimize_threshold.py` |
 | F1-Score | >85%             | <70%   | Check dataset quality       |
 | Memory   | <2GB             | >4GB   | Use smaller batch sizes     |
+
+## 🚀 Deployment
+
+Anomalyze uses a split architecture for optimal performance:
+
+### Architecture:
+
+- **Frontend** (Vercel): Lightweight Flask app serving UI
+- **Backend API** (Render): Heavy ML processing with model inference
+- **Communication**: Frontend forwards uploads to backend API via HTTP
+
+### Deploy to Production:
+
+#### 1. Backend API (Render)
+
+```bash
+# Push code to GitHub
+git push origin main
+
+# On Render dashboard:
+1. Create New Web Service
+2. Connect GitHub repository
+3. Build Command: pip install -r requirements-render.txt
+4. Start Command: gunicorn api_server:app
+5. Set Environment: PYTHON_VERSION=3.12.0
+```
+
+#### 2. Frontend (Vercel)
+
+```bash
+# On Vercel dashboard:
+1. Import GitHub repository
+2. Add Environment Variable:
+   ANOMALYZE_API_URL = https://your-render-url.onrender.com
+3. Deploy
+
+# Or via CLI:
+vercel --prod
+```
+
+### Environment Variables:
+
+**Vercel (Frontend)**:
+
+- `ANOMALYZE_API_URL`: Your Render backend API URL
+
+**Render (Backend)**:
+
+- `PYTHON_VERSION`: 3.12.0 (or higher)
+
+### File Structure for Deployment:
+
+```
+Root/
+├── api_server.py          → Render backend
+├── requirements-render.txt → Render dependencies
+├── render.yaml            → Render config
+├── api/                   → Vercel frontend
+│   ├── index.py
+│   ├── app_vercel.py
+│   └── requirements.txt
+├── vercel.json            → Vercel config
+└── runtime.txt            → Python version
+```
 
 ## 🤝 Contributing
 
