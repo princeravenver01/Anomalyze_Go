@@ -16,7 +16,6 @@ app.py
 train_model.py
 test_performance.py
 optimize_threshold.py
-requirements.txt
 requirements-render.txt
 render.yaml
 .renderignore
