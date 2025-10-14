@@ -16,6 +16,7 @@ Anomalyze is an optimized network anomaly detection system that uses ensemble K-
 - **⚡ Ultra-Fast Processing**: 47,000+ samples per second processing speed
 - **🎯 High Accuracy**: 86.24% accuracy with 87.17% F1-score
 - **🔄 Optimized K-means Ensemble**: 5 different K-means models with optimized configurations
+- **🤖 Incremental Learning**: Automatically saves uploaded logs and retrains model after 10 uploads
 - **📊 Real-time Analysis**: Instant anomaly detection results with sub-second response times
 - **📈 Comprehensive Metrics**: Detailed performance analytics with precision, recall, and confidence scoring
 - **🎨 User-Friendly Interface**: Clean Flask web application for easy interaction

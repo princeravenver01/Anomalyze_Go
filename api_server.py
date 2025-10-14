@@ -1,6 +1,5 @@
 """
 Anomalyze API Server for Render Deployment
-Python 3.12 Compatible
 Hosts ML models and provides prediction API endpoints
 """
 
@@ -22,6 +21,11 @@ CORS(app)  # Enable CORS for Vercel frontend
 
 # Configure models folder
 MODELS_FOLDER = 'models'
+UPLOADED_LOGS_FOLDER = 'data/uploaded_logs'
+
+# Create folders if they don't exist
+os.makedirs(MODELS_FOLDER, exist_ok=True)
+os.makedirs(UPLOADED_LOGS_FOLDER, exist_ok=True)
 
 # Global variables
 ensemble_models = None
@@ -29,6 +33,8 @@ scaler = None
 data_columns = None
 optimal_threshold = None
 model_scores = None
+upload_counter = 0  # Track number of uploads since last retrain
+RETRAIN_THRESHOLD = 10  # Retrain after N uploads
 
 # Paths for saved model files
 MODEL_PATH = os.path.join(MODELS_FOLDER, 'ensemble_models.joblib')
@@ -36,6 +42,7 @@ SCALER_PATH = os.path.join(MODELS_FOLDER, 'scaler.joblib')
 COLUMNS_PATH = os.path.join(MODELS_FOLDER, 'data_columns.joblib')
 THRESHOLD_PATH = os.path.join(MODELS_FOLDER, 'optimal_threshold.joblib')
 MODEL_SCORES_PATH = os.path.join(MODELS_FOLDER, 'model_scores.joblib')
+UPLOAD_COUNTER_PATH = os.path.join(MODELS_FOLDER, 'upload_counter.txt')
 
 
 def ensemble_predict(models: list, data: np.ndarray, threshold: float) -> np.ndarray:
@@ -80,6 +87,83 @@ def calculate_anomaly_severity(distances: np.ndarray, threshold: float) -> list[
             severity_levels.append('Critical')
     
     return severity_levels
+
+
+def save_uploaded_file(file_content: str, filename: str) -> str:
+    """Save uploaded file to the uploaded_logs folder for future training."""
+    from datetime import datetime
+    
+    # Create unique filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    safe_filename = f"{timestamp}_{filename}"
+    file_path = os.path.join(UPLOADED_LOGS_FOLDER, safe_filename)
+    
+    # Save the file
+    with open(file_path, 'w') as f:
+        f.write(file_content)
+    
+    print(f"✓ Saved uploaded file: {file_path}")
+    return file_path
+
+
+def increment_upload_counter() -> int:
+    """Increment and return the upload counter."""
+    global upload_counter
+    
+    # Load counter from file if exists
+    if os.path.exists(UPLOAD_COUNTER_PATH):
+        with open(UPLOAD_COUNTER_PATH, 'r') as f:
+            upload_counter = int(f.read().strip())
+    
+    # Increment
+    upload_counter += 1
+    
+    # Save counter
+    with open(UPLOAD_COUNTER_PATH, 'w') as f:
+        f.write(str(upload_counter))
+    
+    return upload_counter
+
+
+def should_retrain() -> bool:
+    """Check if model should be retrained based on upload count."""
+    return upload_counter >= RETRAIN_THRESHOLD
+
+
+def trigger_retraining():
+    """Trigger model retraining with all available data (async)."""
+    global upload_counter
+    
+    print(f"\n{'='*60}")
+    print(f"🔄 RETRAINING TRIGGERED - {upload_counter} uploads accumulated")
+    print(f"{'='*60}\n")
+    
+    try:
+        # Import training function
+        import subprocess
+        import sys
+        
+        # Run retrain script in background
+        # For production, consider using Celery or similar task queue
+        print("Starting retraining process...")
+        result = subprocess.Popen(
+            [sys.executable, 'retrain_model.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        print(f"✓ Retraining initiated (PID: {result.pid})")
+        
+        # Reset counter
+        upload_counter = 0
+        with open(UPLOAD_COUNTER_PATH, 'w') as f:
+            f.write('0')
+        
+        return True
+        
+    except Exception as e:
+        print(f"✗ Error triggering retraining: {e}")
+        return False
 
 
 def load_model() -> bool:
@@ -157,9 +241,22 @@ def predict():
         
         print("Step 1: Reading file...")
         # Read and preprocess data
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        file_content = file.stream.read().decode("UTF8")
+        stream = io.StringIO(file_content, newline=None)
         stream.seek(0)
         df_test_original = pd.read_csv(stream, header=None)
+        
+        # Save uploaded file for future training
+        print("Step 1.5: Saving uploaded file for incremental learning...")
+        save_uploaded_file(file_content, file.filename or 'upload.txt')
+        
+        # Increment upload counter and check if retraining needed
+        current_count = increment_upload_counter()
+        print(f"Step 1.6: Upload count: {current_count}/{RETRAIN_THRESHOLD}")
+        
+        if should_retrain():
+            print("Step 1.7: Retraining threshold reached - triggering retraining...")
+            trigger_retraining()
         print(f"Step 2: Original data shape: {df_test_original.shape}")
         
         stream.seek(0)

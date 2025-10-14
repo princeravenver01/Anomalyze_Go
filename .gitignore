@@ -32,6 +32,14 @@ uploads/*.txt
 uploads/*.csv
 !uploads/.gitkeep
 
+# Uploaded logs for incremental learning (keep structure, ignore files)
+data/uploaded_logs/*.txt
+data/uploaded_logs/archived/
+!data/uploaded_logs/.gitkeep
+
+# Upload counter
+models/upload_counter.txt
+
 # Test outputs
 *.pytest_cache/
 .coverage

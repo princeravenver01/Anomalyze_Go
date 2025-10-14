@@ -1,0 +1,2 @@
+# This folder stores uploaded network logs for incremental learning
+# Files are automatically archived after model retraining

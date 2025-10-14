@@ -1,7 +1,6 @@
 """
 Anomalyze Preprocessing Module
 Optimized data preprocessing for network intrusion detection
-Python 3.12 Compatible
 """
 
 from __future__ import annotations

@@ -1,7 +1,6 @@
 """
 Anomalyze - Network Intrusion Detection System
 Vercel Frontend - Calls Render API for predictions
-Python 3.12 Compatible
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.absolute()
 
 # Initialize Flask with explicit paths
-# For Vercel, use relative paths that work in serverless environment
 app = Flask(
     __name__,
     template_folder='templates',
